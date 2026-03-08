@@ -1,0 +1,460 @@
+﻿@{
+    ViewData["Title"] = "Visitas técnicas";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Estilos {
+    <link href="~/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet" />
+    <link href="~/vendor/datatables/extensiones/css/responsive.dataTables.min.css" rel="stylesheet" />
+    <link href="~/vendor/datatables/extensiones/css/buttons.dataTables.min.css" rel="stylesheet" />
+    <style>
+        .modal .form-group label {
+            font-weight: 600;
+        }
+
+        .select-w {
+            min-width: 100%;
+        }
+
+        .badge-aprobado {
+            background-color: #28a745;
+        }
+
+        .badge-noaprobado {
+            background-color: #dc3545;
+        }
+    </style>
+}
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 bg-second-primary d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-white">
+            VISITAS TÉCNICAS
+        </h6>
+        <div class="d-flex align-items-center">
+            <span class="text-white mr-2">Filtrar por solicitud:</span>
+            <select id="cboFiltroSolicitud" class="form-control form-control-sm select-w" style="min-width:220px;">
+                <option value="">— Todas —</option>
+            </select>
+        </div>
+    </div>
+
+    <div class="card-body">
+        <div class="mb-3">
+            <button class="btn btn-outline-success" id="btnNuevo" data-toggle="modal" data-target="#modalData">
+                <i class="fas fa-map-marked-alt"></i> NUEVA VISITA
+            </button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped w-100" id="tbdata">
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Fecha visita</th>
+                        <th>Solicitud</th>
+                        <th>Cliente</th>
+                        <th>Aprobado</th>
+                        <th>Observaciones</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear/Editar -->
+<div class="modal fade" id="modalData" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title"><strong>Formulario de visita técnica</strong></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- El token CSRF viene del formulario global en _Layout mediante getCsrfToken() -->
+                <form id="frmVisita">
+                    <input type="hidden" id="txtId" value="0" />
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-6">
+                            <label for="cboSolicitud">Solicitud</label>
+                            <select id="cboSolicitud" class="form-control form-control-sm select-w"></select>
+                        </div>
+                        <div class="form-group col-sm-6">
+                            <label for="txtFechaVisita">Fecha y hora de visita</label>
+                            <input type="datetime-local" id="txtFechaVisita" class="form-control form-control-sm" />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-6 d-flex align-items-center">
+                            <div class="form-check mt-3">
+                                <input class="form-check-input" type="checkbox" id="chkAprobado" />
+                                <label class="form-check-label" for="chkAprobado">
+                                    Visita aprobada
+                                </label>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-12">
+                            <label for="txtObservaciones">Observaciones</label>
+                            <textarea id="txtObservaciones" class="form-control form-control-sm" rows="3"
+                                      maxlength="500"
+                                      placeholder="Notas de la visita (hallazgos, mediciones, recomendaciones, etc.)"></textarea>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary btn-sm" id="btnGuardar" type="button">Guardar</button>
+                <button class="btn btn-secondary btn-sm" data-dismiss="modal" type="button">Cancelar</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Datatables -->
+    <script src="~/vendor/datatables/jquery.dataTables.min.js"></script>
+    <script src="~/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.responsive.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.buttons.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/jszip.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.html5.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.print.min.js"></script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        const RUTA_BASE = '@Url.Content("~/")';
+        let tabla;
+        let solicitudesCombo = [];
+
+        // 🔐 Helper para fetch con CSRF (usa window.getCsrfToken() definido globalmente)
+        function fetchWithCsrf(url, options) {
+            const token = window.getCsrfToken ? window.getCsrfToken() : '';
+            const opts = options || {};
+            const headers = opts.headers || {};
+
+            if (token) {
+                headers['RequestVerificationToken'] = token;
+            }
+
+            return fetch(url, { ...opts, headers });
+        }
+
+        function toLocalDateTimeValue(date) {
+            if (!date) return '';
+            const d = new Date(date);
+            if (isNaN(d.getTime())) return '';
+            const pad = n => n.toString().padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function validar() {
+            const solicitudId = $('#cboSolicitud').val();
+            const fechaVal = $('#txtFechaVisita').val();
+
+            if (!solicitudId) return "Debe seleccionar una solicitud.";
+            if (!fechaVal) return "Debe indicar la fecha y hora de la visita.";
+
+            return null;
+        }
+
+        async function cargarCombos() {
+            // Usa /VisitasTecnicas/DataCombos (ya definido en el controller)
+            const resp = await fetch(RUTA_BASE + 'VisitasTecnicas/DataCombos');
+            const json = await resp.json();
+
+            if (!json.estado) {
+                throw new Error(json.mensaje || 'Error al cargar combos');
+            }
+
+            solicitudesCombo = json.objeto || [];
+
+            // Combo de filtro (arriba)
+            let htmlFiltro = '<option value="">— Todas —</option>';
+            solicitudesCombo.forEach(s => {
+                htmlFiltro += `<option value="${s.id}">#${s.id} - ${s.clienteNombre}</option>`;
+            });
+            $('#cboFiltroSolicitud').html(htmlFiltro);
+
+            // Combo del modal
+            let htmlModal = '<option value="">— Seleccione —</option>';
+            solicitudesCombo.forEach(s => {
+                htmlModal += `<option value="${s.id}">#${s.id} - ${s.clienteNombre}</option>`;
+            });
+            $('#cboSolicitud').html(htmlModal);
+        }
+
+        $(document).ready(async function () {
+            try {
+                await cargarCombos();
+            } catch (e) {
+                console.error(e);
+            }
+
+            // DataTable
+            tabla = $('#tbdata').DataTable({
+                processing: true,
+                serverSide: false,
+                responsive: true,
+                ajax: {
+                    url: RUTA_BASE + 'VisitasTecnicas/Lista',
+                    type: 'GET',
+                    dataSrc: function (json) {
+                        if (json.estado) return json.lista;
+                        console.error(json.mensaje || 'Error al cargar');
+                        return [];
+                    }
+                },
+                columns: [
+                    { data: 'id', width: '6%' },
+                    {
+                        data: 'fechaVisita',
+                        render: function (d) {
+                            if (!d) return '';
+                            const dt = new Date(d);
+                            return dt.toLocaleString();
+                        }
+                    },
+                    {
+                        data: 'solicitudId',
+                        render: function (id, type, row) {
+                            const sol = solicitudesCombo.find(s => s.id === id);
+                            if (!sol) return id || '';
+                            return `#${sol.id}`;
+                        }
+                    },
+                    {
+                        data: 'solicitudId',
+                        render: function (id, type, row) {
+                            const sol = solicitudesCombo.find(s => s.id === id);
+                            if (!sol) return row.solicitudCliente || '(sin cliente)';
+                            return sol.clienteNombre;
+                        }
+                    },
+                    {
+                        data: 'aprobado',
+                        render: function (d) {
+                            const val = d === true || d === 'true';
+                            const text = val ? 'Sí' : 'No';
+                            const cls = val ? 'badge-aprobado' : 'badge-noaprobado';
+                            return `<span class="badge ${cls}">${text}</span>`;
+                        }
+                    },
+                    { data: 'observaciones', defaultContent: '' },
+                    {
+                        data: null,
+                        orderable: false, searchable: false, width: '18%',
+                        render: function (data) {
+                            const val = data.aprobado === true || data.aprobado === 'true';
+                            const txtToggle = val ? 'Revertir' : 'Aprobar';
+                            return `
+                                <button class="btn btn-sm btn-primary btn-editar" title="Editar">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger btn-eliminar" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <button class="btn btn-sm btn-info btn-toggle" title="${txtToggle}">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>
+                            `;
+                        }
+                    }
+                ],
+                dom: 'Bfrtip',
+                buttons: [
+                    {
+                        extend: 'excelHtml5',
+                        text: '<i class="far fa-file-excel"></i> Excel',
+                        titleAttr: 'Exportar a Excel',
+                        className: 'btn btn-success btn-sm'
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="fa fa-print"></i> Imprimir',
+                        titleAttr: 'Imprimir',
+                        className: 'btn btn-secondary btn-sm'
+                    }
+                ],
+                language: {
+                    url: RUTA_BASE + 'vendor/datatables/es-ES.json'
+                }
+            });
+
+            // Filtro por solicitud
+            $('#cboFiltroSolicitud').on('change', function () {
+                const id = $(this).val();
+                let url = RUTA_BASE + 'VisitasTecnicas/Lista';
+                if (id) {
+                    url += '?solicitudId=' + id;
+                }
+                tabla.ajax.url(url).load();
+            });
+
+            // Nuevo
+            $('#btnNuevo').on('click', function () {
+                $('#txtId').val(0);
+                $('#frmVisita')[0].reset();
+                $('#cboSolicitud').val('');
+                $('#chkAprobado').prop('checked', false);
+                $('#modalData').modal('show');
+            });
+
+            // Guardar (crear/editar)
+            $('#btnGuardar').on('click', async function () {
+                const error = validar();
+                if (error) {
+                    if (window.Swal) Swal.fire('Validación', error, 'warning'); else alert(error);
+                    return;
+                }
+
+                const fechaVal = $('#txtFechaVisita').val();
+
+                const payload = {
+                    id: parseInt($('#txtId').val() || '0'),
+                    solicitudId: parseInt($('#cboSolicitud').val()),
+                    fechaVisita: fechaVal ? new Date(fechaVal).toISOString() : null,
+                    aprobado: $('#chkAprobado').is(':checked'),
+                    observaciones: $('#txtObservaciones').val().trim() || null
+                };
+
+                const esNuevo = payload.id === 0;
+                const url = RUTA_BASE + (esNuevo ? 'VisitasTecnicas/Guardar' : 'VisitasTecnicas/Editar');
+                const method = esNuevo ? 'POST' : 'PUT';
+
+                try {
+                    const resp = await fetchWithCsrf(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const json = await resp.json();
+                    if (json.estado) {
+                        if (window.Swal) Swal.fire('Éxito', 'Registro guardado correctamente', 'success');
+                        $('#modalData').modal('hide');
+                        tabla.ajax.reload(null, false);
+                    } else {
+                        if (window.Swal) Swal.fire('Error', json.mensaje || 'No se pudo guardar', 'error');
+                        else alert(json.mensaje || 'No se pudo guardar');
+                    }
+                } catch (e) {
+                    if (window.Swal) Swal.fire('Error', e.message, 'error'); else alert(e.message);
+                }
+            });
+
+            // Editar
+            $('#tbdata').on('click', '.btn-editar', function () {
+                const data = tabla.row($(this).closest('tr')).data();
+                if (!data) return;
+
+                $('#txtId').val(data.id);
+                $('#cboSolicitud').val(data.solicitudId || '');
+                $('#txtFechaVisita').val(data.fechaVisita ? toLocalDateTimeValue(data.fechaVisita) : '');
+                $('#chkAprobado').prop('checked', data.aprobado === true || data.aprobado === 'true');
+                $('#txtObservaciones').val(data.observaciones || '');
+
+                $('#modalData').modal('show');
+            });
+
+            // Eliminar
+            $('#tbdata').on('click', '.btn-eliminar', function () {
+                const data = tabla.row($(this).closest('tr')).data();
+                if (!data) return;
+
+                const runDelete = async () => {
+                    try {
+                        const resp = await fetchWithCsrf(
+                            RUTA_BASE + 'VisitasTecnicas/Eliminar?id=' + data.id,
+                            { method: 'DELETE' }
+                        );
+
+                        const json = await resp.json();
+                        if (json.estado) {
+                            if (window.Swal) Swal.fire('Eliminado', 'Visita eliminada', 'success');
+                            tabla.ajax.reload(null, false);
+                        } else {
+                            if (window.Swal) Swal.fire('No eliminado', json.mensaje || 'No se pudo eliminar', 'warning');
+                        }
+                    } catch (e) {
+                        if (window.Swal) Swal.fire('Error', e.message, 'error'); else alert(e.message);
+                    }
+                };
+
+                if (window.Swal) {
+                    Swal.fire({
+                        title: '¿Eliminar visita?',
+                        text: `Se eliminará la visita #${data.id}`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    }).then(r => { if (r.isConfirmed) runDelete(); });
+                } else {
+                    if (confirm('¿Eliminar visita?')) runDelete();
+                }
+            });
+
+            // Toggle aprobado (clic rápido)
+            $('#tbdata').on('click', '.btn-toggle', function () {
+                const data = tabla.row($(this).closest('tr')).data();
+                if (!data) return;
+
+                const nuevoEstado = !(data.aprobado === true || data.aprobado === 'true');
+
+                const runToggle = async () => {
+                    try {
+                        const resp = await fetchWithCsrf(
+                            RUTA_BASE + 'VisitasTecnicas/ToggleAprobado',
+                            {
+                                method: 'PATCH',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ id: data.id, aprobado: nuevoEstado })
+                            }
+                        );
+
+                        const json = await resp.json();
+                        if (json.estado) {
+                            if (window.Swal) Swal.fire('Actualizado', 'Estado de aprobación actualizado', 'success');
+                            tabla.ajax.reload(null, false);
+                        } else {
+                            if (window.Swal) Swal.fire('No actualizado', json.mensaje || 'No se pudo actualizar', 'warning');
+                        }
+                    } catch (e) {
+                        if (window.Swal) Swal.fire('Error', e.message, 'error'); else alert(e.message);
+                    }
+                };
+
+                if (window.Swal) {
+                    Swal.fire({
+                        title: '¿Cambiar estado de aprobación?',
+                        text: `Visita #${data.id} será marcada como "${nuevoEstado ? 'Aprobada' : 'No aprobada'}"`,
+                        icon: 'question',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, cambiar',
+                        cancelButtonText: 'Cancelar'
+                    }).then(r => { if (r.isConfirmed) runToggle(); });
+                } else {
+                    if (confirm('¿Cambiar estado de aprobación?')) runToggle();
+                }
+            });
+
+        });
+    </script>
+}

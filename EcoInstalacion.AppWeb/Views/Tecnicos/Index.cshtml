@@ -1,0 +1,301 @@
+﻿@{
+    ViewData["Title"] = "Técnicos";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Estilos {
+    <link href="~/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet" />
+    <link href="~/vendor/datatables/extensiones/css/responsive.dataTables.min.css" rel="stylesheet" />
+    <link href="~/vendor/datatables/extensiones/css/buttons.dataTables.min.css" rel="stylesheet" />
+    <style>
+        .modal .form-group label {
+            font-weight: 600;
+        }
+    </style>
+}
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 bg-second-primary">
+        <h6 class="m-0 font-weight-bold text-white">LISTADO DE TÉCNICOS</h6>
+    </div>
+
+    <div class="card-body">
+        <div class="mb-3">
+            <button class="btn btn-outline-success" id="btnNuevo" data-toggle="modal" data-target="#modalData">
+                <i class="fas fa-user-cog"></i> AGREGAR TÉCNICO
+            </button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped w-100" id="tbdata">
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Nombre</th>
+                        <th>Especialidad</th>
+                        <th>Teléfono</th>
+                        <th>Correo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear/Editar -->
+<div class="modal fade" id="modalData" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title"><strong>Formulario de técnico</strong></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- NO necesitamos AntiForgery aquí: el token viene del formulario global en _Layout mediante getCsrfToken() -->
+                <form id="frmTecnico">
+                    <input type="hidden" id="txtId" value="0" />
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-12">
+                            <label for="txtNombre">Nombre</label>
+                            <input type="text" id="txtNombre" class="form-control form-control-sm" maxlength="100" required />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-6">
+                            <label for="txtEspecialidad">Especialidad</label>
+                            <input type="text" id="txtEspecialidad" class="form-control form-control-sm" maxlength="50" />
+                        </div>
+                        <div class="form-group col-sm-6">
+                            <label for="txtTelefono">Teléfono</label>
+                            <input type="text" id="txtTelefono" class="form-control form-control-sm" placeholder="########" maxlength="8" />
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-12">
+                            <label for="txtCorreo">Correo</label>
+                            <input type="email" id="txtCorreo" class="form-control form-control-sm" maxlength="100" />
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary btn-sm" id="btnGuardar" type="button">Guardar</button>
+                <button class="btn btn-secondary btn-sm" data-dismiss="modal" type="button">Cancelar</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Datatables -->
+    <script src="~/vendor/datatables/jquery.dataTables.min.js"></script>
+    <script src="~/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.responsive.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.buttons.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/jszip.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.html5.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.print.min.js"></script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        const RUTA_BASE = '@Url.Content("~/")';
+        let tabla;
+
+        // 🔐 Helper para fetch con CSRF usando getCsrfToken() definido en Site.js
+        function fetchWithCsrf(url, options) {
+            const token = window.getCsrfToken ? window.getCsrfToken() : '';
+            const opts = options || {};
+            const headers = opts.headers || {};
+
+            if (token) {
+                headers['RequestVerificationToken'] = token;
+            }
+
+            return fetch(url, { ...opts, headers });
+        }
+
+        function validar() {
+            const nombre = $('#txtNombre').val().trim();
+            const tel = $('#txtTelefono').val().trim();
+            const email = $('#txtCorreo').val().trim();
+
+            if (!nombre) return "El nombre es requerido.";
+            if (tel && !/^\d{8}$/.test(tel)) return "El teléfono debe tener 8 dígitos.";
+            if (email && !/^[^\s@@]+@@[^\s@@]+\.[^\s@@]+$/.test(email)) return "Correo inválido.";
+            return null;
+        }
+
+        $(document).ready(function () {
+            // DataTable
+            tabla = $('#tbdata').DataTable({
+                processing: true,
+                serverSide: false,
+                responsive: true,
+                ajax: {
+                    url: RUTA_BASE + 'Tecnicos/Lista',
+                    type: 'GET',
+                    dataSrc: function (json) {
+                        if (json.estado) return json.lista;
+                        console.error(json.mensaje || 'Error al cargar');
+                        return [];
+                    }
+                },
+                columns: [
+                    { data: 'id', width: '6%' },
+                    { data: 'nombre', defaultContent: '' },
+                    { data: 'especialidad', defaultContent: '' },
+                    { data: 'telefono', defaultContent: '' },
+                    { data: 'correo', defaultContent: '' },
+                    {
+                        data: null,
+                        orderable: false, searchable: false, width: '14%',
+                        render: function () {
+                            return `
+                                <button class="btn btn-sm btn-primary btn-editar" title="Editar">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger btn-eliminar" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                            `;
+                        }
+                    }
+                ],
+                dom: 'Bfrtip',
+                buttons: [
+                    {
+                        extend: 'excelHtml5',
+                        text: '<i class="far fa-file-excel"></i> Excel',
+                        titleAttr: 'Exportar a Excel',
+                        className: 'btn btn-success btn-sm'
+                    },
+                    {
+                        extend: 'print',
+                        text: '<i class="fa fa-print"></i> Imprimir',
+                        titleAttr: 'Imprimir',
+                        className: 'btn btn-secondary btn-sm'
+                    }
+                ],
+                language: {
+                    url: RUTA_BASE + 'vendor/datatables/es-ES.json'
+                }
+            });
+
+            // Nuevo
+            $('#btnNuevo').on('click', function () {
+                $('#txtId').val(0);
+                $('#frmTecnico')[0].reset();
+                $('#modalData').modal('show');
+            });
+
+            // Guardar (crear/editar)
+            $('#btnGuardar').on('click', async function () {
+                const error = validar();
+                if (error) {
+                    if (window.Swal) Swal.fire('Validación', error, 'warning'); else alert(error);
+                    return;
+                }
+
+                const payload = {
+                    id: parseInt($('#txtId').val() || '0'),
+                    nombre: $('#txtNombre').val().trim(),
+                    especialidad: $('#txtEspecialidad').val().trim() || null,
+                    telefono: $('#txtTelefono').val().trim() || null,
+                    correo: $('#txtCorreo').val().trim() || null
+                };
+
+                const esNuevo = payload.id === 0;
+                const url = RUTA_BASE + (esNuevo ? 'Tecnicos/Guardar' : 'Tecnicos/Editar');
+                const method = esNuevo ? 'POST' : 'PUT';
+
+                try {
+                    const resp = await fetchWithCsrf(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const json = await resp.json();
+
+                    if (json.estado) {
+                        if (window.Swal) Swal.fire('Éxito', 'Registro guardado correctamente', 'success');
+                        $('#modalData').modal('hide');
+                        tabla.ajax.reload(null, false);
+                    } else {
+                        if (window.Swal) Swal.fire('Error', json.mensaje || 'No se pudo guardar', 'error');
+                        else alert(json.mensaje || 'No se pudo guardar');
+                    }
+                } catch (e) {
+                    if (window.Swal) Swal.fire('Error', e.message, 'error'); else alert(e.message);
+                }
+            });
+
+            // Editar
+            $('#tbdata').on('click', '.btn-editar', function () {
+                const data = tabla.row($(this).closest('tr')).data();
+                if (!data) return;
+
+                $('#txtId').val(data.id);
+                $('#txtNombre').val(data.nombre || '');
+                $('#txtEspecialidad').val(data.especialidad || '');
+                $('#txtTelefono').val(data.telefono || '');
+                $('#txtCorreo').val(data.correo || '');
+
+                $('#modalData').modal('show');
+            });
+
+            // Eliminar
+            $('#tbdata').on('click', '.btn-eliminar', function () {
+                const data = tabla.row($(this).closest('tr')).data();
+                if (!data) return;
+
+                const runDelete = async () => {
+                    try {
+                        const resp = await fetchWithCsrf(
+                            RUTA_BASE + 'Tecnicos/Eliminar?id=' + data.id,
+                            { method: 'DELETE' }
+                        );
+
+                        const json = await resp.json();
+                        if (json.estado) {
+                            if (window.Swal) Swal.fire('Eliminado', 'Registro eliminado', 'success');
+                            tabla.ajax.reload(null, false);
+                        } else {
+                            if (window.Swal) Swal.fire('No eliminado', json.mensaje || 'No se pudo eliminar', 'warning');
+                        }
+                    } catch (e) {
+                        if (window.Swal) Swal.fire('Error', e.message, 'error'); else alert(e.message);
+                    }
+                };
+
+                if (window.Swal) {
+                    Swal.fire({
+                        title: '¿Eliminar técnico?',
+                        text: `Se eliminará: ${data.nombre}`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    }).then(r => { if (r.isConfirmed) runDelete(); });
+                } else {
+                    if (confirm('¿Eliminar técnico?')) runDelete();
+                }
+            });
+
+        });
+    </script>
+}

@@ -1,0 +1,273 @@
+﻿@{
+    ViewData["Title"] = "ReporteTecnicos";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Estilos {
+    <link rel="stylesheet" href="~/vendor/datatables/dataTables.bootstrap4.min.css" />
+    <link rel="stylesheet" href="~/vendor/datatables/extensiones/css/responsive.dataTables.min.css" />
+    <link rel="stylesheet" href="~/vendor/datatables/extensiones/css/buttons.dataTables.min.css" />
+    <link rel="stylesheet" href="~/vendor/jquery-ui/jquery-ui.css" />
+
+    <style>
+        .badge-aprobado {
+            background-color: #28a745;
+        }
+
+        .badge-noaprobado {
+            background-color: #dc3545;
+        }
+
+        .badge-aprobado,
+        .badge-noaprobado {
+            color: #fff;
+            font-size: 0.8rem;
+            padding: 0.35rem 0.55rem;
+        }
+
+        .filtros-row .form-group label {
+            font-weight: 600;
+        }
+    </style>
+}
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 bg-second-primary">
+        <h6 class="m-0 font-weight-bold text-white">
+            REPORTE TÉCNICOS ASIGNADOS
+        </h6>
+    </div>
+
+    <div class="card-body">
+
+        <!-- Filtros -->
+        <div class="form-row align-items-end filtros-row">
+
+            <div class="form-group col-sm-3">
+                <label for="txtFechaInicio">Fecha Inicio</label>
+                <input type="text" class="form-control form-control-sm" id="txtFechaInicio" autocomplete="off" />
+            </div>
+
+            <div class="form-group col-sm-3">
+                <label for="txtFechaFin">Fecha Fin</label>
+                <input type="text" class="form-control form-control-sm" id="txtFechaFin" autocomplete="off" />
+            </div>
+
+            <div class="form-group col-sm-3">
+                <button type="button" class="btn btn-primary btn-block btn-sm" id="btnBuscar">
+                    <i class="fas fa-search"></i> Buscar
+                </button>
+            </div>
+
+            <div class="form-group col-sm-3">
+                <!-- Botón de exportación PDF (QuestPDF en backend) -->
+                <button type="button" class="btn btn-danger btn-block btn-sm" id="btnPdf">
+                    <i class="fas fa-file-pdf"></i> Exportar PDF
+                </button>
+            </div>
+        </div>
+
+        <hr />
+
+        <div class="row mb-2">
+            <div class="col-sm-12 d-flex justify-content-between align-items-center">
+                <div>
+                    <!-- Los botones de exportación extra los genera DataTables -->
+                </div>
+                <div class="text-muted small">
+                    * El filtro aplica a <strong>Fecha solicitud</strong> (y opcionalmente Fecha visita).
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla -->
+        <div class="row">
+            <div class="col-sm-12">
+                <table id="tbdata" class="table table-sm table-striped table-bordered" cellspacing="0" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th scope="col">Técnico</th>
+                            <th scope="col">Especialidad</th>
+                            <th scope="col">Fecha solicitud</th>
+                            <th scope="col">Fecha visita</th>
+                            <th scope="col">Tipo instalación</th>
+                            <th scope="col">Descripción</th>
+                            <th scope="col">Estado</th>
+                            <th scope="col">Observaciones</th>
+                            <th scope="col">Aprobación</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @* DataTables llenará el cuerpo por AJAX *@
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="~/vendor/datatables/jquery.dataTables.min.js"></script>
+    <script src="~/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.responsive.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.buttons.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/jszip.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.html5.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.print.min.js"></script>
+
+    <script src="~/vendor/jquery-ui/jquery-ui.js"></script>
+    <script src="~/vendor/jquery-ui/idioma/datepicker-es.js"></script>
+
+    <!-- SweetAlert2 (opcional) -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        const RUTA_BASE = '@Url.Content("~/")';
+        let tabla;
+
+        // Formatea Date a texto local
+        function formatDateTime(value) {
+            if (!value) return "";
+            const d = new Date(value);
+            if (isNaN(d.getTime())) return "";
+            return d.toLocaleString();
+        }
+
+        function getFechaInicio() {
+            return $('#txtFechaInicio').val().trim();
+        }
+
+        function getFechaFin() {
+            return $('#txtFechaFin').val().trim();
+        }
+
+        $(document).ready(function () {
+
+            // 🌄 Datepicker en español
+            $.datepicker.setDefaults($.datepicker.regional["es"]);
+            $("#txtFechaInicio, #txtFechaFin").datepicker({
+                dateFormat: "dd/mm/yy",
+                changeMonth: true,
+                changeYear: true
+            });
+
+            // 📊 DataTable
+            tabla = $('#tbdata').DataTable({
+                processing: true,
+                serverSide: false,
+                responsive: true,
+                ajax: {
+                    url: RUTA_BASE + "Reportes/ListaTecnicosAsignados",
+                    type: "GET",
+                    dataType: "json",
+                    data: function (d) {
+                        return {
+                            fechaInicio: getFechaInicio(),
+                            fechaFin: getFechaFin()
+                        };
+                    },
+                    dataSrc: function (json) {
+                        if (json.estado) {
+                            return json.lista;
+                        }
+                        console.error(json.mensaje || "Error al cargar el reporte.");
+                        if (window.Swal) {
+                            Swal.fire("Error", json.mensaje || "No se pudo obtener el reporte.", "error");
+                        }
+                        return [];
+                    }
+                },
+                columns: [
+                    { data: "tecnico", defaultContent: "" },
+                    { data: "especialidad", defaultContent: "" },
+                    {
+                        data: "fechaSolicitud",
+                        render: function (d) { return formatDateTime(d); }
+                    },
+                    {
+                        data: "fechaVisita",
+                        render: function (d) { return formatDateTime(d); }
+                    },
+                    { data: "tipoInstalacion", defaultContent: "" },
+                    { data: "descripcion", defaultContent: "" },
+                    { data: "estado", defaultContent: "" },
+                    { data: "observaciones", defaultContent: "" },
+                    {
+                        data: "aprobado",
+                        render: function (d) {
+                            const val = d === true || d === "true";
+                            const texto = val ? "Sí" : "No";
+                            const cls = val ? "badge-aprobado" : "badge-noaprobado";
+                            return `<span class="badge ${cls}">${texto}</span>`;
+                        }
+                    }
+                ],
+                dom: "Bfrtip",
+                buttons: [
+                    {
+                        extend: "excelHtml5",
+                        text: '<i class="far fa-file-excel"></i> Exportar Excel',
+                        titleAttr: "Exportar a Excel",
+                        className: "btn btn-success btn-sm"
+                    },
+                    {
+                        extend: "print",
+                        text: '<i class="fa fa-print"></i> Imprimir',
+                        titleAttr: "Imprimir",
+                        className: "btn btn-secondary btn-sm"
+                    }
+                ],
+                language: {
+                    url: RUTA_BASE + "vendor/datatables/es-ES.json"
+                }
+            });
+
+            // 🔍 Buscar con filtro de fechas
+            $('#btnBuscar').on('click', function () {
+                tabla.ajax.reload();
+            });
+
+            // 📄 Exportar PDF con fetch (sin recargar la vista)
+            $('#btnPdf').on('click', function () {
+                descargarPdfTecnicos();
+            });
+        });
+
+        // 🔻 FUNCIÓN PARA DESCARGAR PDF SIN RECARGAR LA VISTA
+        async function descargarPdfTecnicos() {
+            try {
+                const fi = $('#txtFechaInicio').val();
+                const ff = $('#txtFechaFin').val();
+
+                const params = new URLSearchParams();
+                if (fi) params.append('fi', fi);
+                if (ff) params.append('ff', ff);
+
+                const url = RUTA_BASE + 'Reportes/ExportarTecnicosPDF?' + params.toString();
+
+                const resp = await fetch(url, { method: 'GET' });
+
+                if (!resp.ok) {
+                    throw new Error('No se pudo generar el PDF (HTTP ' + resp.status + ').');
+                }
+
+                const blob = await resp.blob();
+                const descargaUrl = window.URL.createObjectURL(blob);
+
+                const a = document.createElement('a');
+                a.href = descargaUrl;
+                a.download = 'Reporte_Tecnicos_Asignados.pdf';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                window.URL.revokeObjectURL(descargaUrl);
+            } catch (e) {
+                if (window.Swal) {
+                    Swal.fire('Error', e.message, 'error');
+                } else {
+                    alert(e.message);
+                }
+            }
+        }
+    </script>
+}

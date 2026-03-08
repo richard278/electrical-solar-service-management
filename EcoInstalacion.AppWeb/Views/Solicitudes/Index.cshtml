@@ -1,0 +1,364 @@
+﻿@{
+    ViewData["Title"] = "Solicitudes";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Estilos {
+    <link href="~/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet" />
+    <link href="~/vendor/datatables/extensiones/css/responsive.dataTables.min.css" rel="stylesheet" />
+    <link href="~/vendor/datatables/extensiones/css/buttons.dataTables.min.css" rel="stylesheet" />
+    <style>
+        .modal .form-group label {
+            font-weight: 600;
+        }
+
+        .select-w {
+            min-width: 100%;
+        }
+    </style>
+}
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 bg-second-primary">
+        <h6 class="m-0 font-weight-bold text-white">SOLICITUDES DE INSTALACIÓN</h6>
+    </div>
+
+    <div class="card-body">
+        <div class="mb-3">
+            <button class="btn btn-outline-success" id="btnNuevo" data-toggle="modal" data-target="#modalData">
+                <i class="fas fa-file-medical"></i> NUEVA SOLICITUD
+            </button>
+        </div>
+
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped w-100" id="tbdata">
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Fecha</th>
+                        <th>Cliente</th>
+                        <th>Tipo instalación</th>
+                        <th>Estado</th>
+                        <th>Técnico</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear/Editar -->
+<div class="modal fade" id="modalData" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title"><strong>Formulario de solicitud</strong></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- NO necesitamos AntiForgery aquí: el token viene del formulario global en _Layout -->
+                <form id="frmSolicitud">
+                    <input type="hidden" id="txtId" value="0" />
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-4">
+                            <label for="txtFecha">Fecha solicitud</label>
+                            <input type="datetime-local" id="txtFecha" class="form-control form-control-sm" />
+                        </div>
+                        <div class="form-group col-sm-4">
+                            <label for="cboCliente">Cliente</label>
+                            <select id="cboCliente" class="form-control form-control-sm select-w"></select>
+                        </div>
+                        <div class="form-group col-sm-4">
+                            <label for="cboEstado">Estado</label>
+                            <select id="cboEstado" class="form-control form-control-sm select-w"></select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-6">
+                            <label for="txtTipo">Tipo de instalación</label>
+                            <input type="text" id="txtTipo" class="form-control form-control-sm" maxlength="50"
+                                   placeholder="Solar residencial, Mixta, etc." />
+                        </div>
+                        <div class="form-group col-sm-6">
+                            <label for="cboTecnico">Técnico asignado (opcional)</label>
+                            <select id="cboTecnico" class="form-control form-control-sm select-w">
+                                <option value="">— Sin asignar —</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-12">
+                            <label for="txtDescripcion">Descripción</label>
+                            <textarea id="txtDescripcion" class="form-control form-control-sm" maxlength="500" rows="3"
+                                      placeholder="Detalle de la solicitud (capacidad estimada, ubicación de paneles, etc.)"></textarea>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary btn-sm" id="btnGuardar" type="button">Guardar</button>
+                <button class="btn btn-secondary btn-sm" data-dismiss="modal" type="button">Cancelar</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Datatables -->
+    <script src="~/vendor/datatables/jquery.dataTables.min.js"></script>
+    <script src="~/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.responsive.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.buttons.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/jszip.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.html5.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.print.min.js"></script>
+
+    <!-- SweetAlert2 si no lo tiene global -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    
+    <script>
+        const RUTA_BASE = '@Url.Content("~/")';
+        let tabla;
+        let combos = { clientes: [], tecnicos: [], estados: [] };
+
+        // 🔐 Helper para fetch con CSRF usando getCsrfToken() de Site.js
+        function fetchWithCsrf(url, options) {
+            const token = getCsrfToken(); // ya lo tienes en Site.js
+            const opts = options || {};
+            const headers = opts.headers || {};
+
+            if (token) {
+                headers['RequestVerificationToken'] = token;
+            }
+
+            return fetch(url, { ...opts, headers });
+        }
+
+        function toLocalDateTimeValue(date) {
+            const d = new Date(date);
+            const pad = n => n.toString().padStart(2, '0');
+            return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+        }
+
+        function validar() {
+            const clienteId = $('#cboCliente').val();
+            const tipo = $('#txtTipo').val().trim();
+
+            if (!clienteId) return "Debe seleccionar un cliente.";
+            if (tipo.length > 0 && tipo.length < 3) return "El tipo de instalación es muy corto.";
+            return null;
+        }
+
+        async function cargarCombos() {
+            const resp = await fetch(RUTA_BASE + 'Solicitudes/DataCombos');
+            const json = await resp.json();
+            if (!json.estado) throw new Error(json.mensaje || 'Error al cargar combos');
+
+            combos.clientes = json.objeto.clientes;
+            combos.tecnicos = json.objeto.tecnicos;
+            combos.estados = json.objeto.estados;
+
+            // Clientes
+            let html = '<option value="">— Seleccione —</option>';
+            combos.clientes.forEach(c => html += `<option value="${c.id}">${c.nombreCompleto}</option>`);
+            $('#cboCliente').html(html);
+
+            // Técnicos
+            let htmlTec = '<option value="">— Sin asignar —</option>';
+            combos.tecnicos.forEach(t => htmlTec += `<option value="${t.id}">${t.nombre}</option>`);
+            $('#cboTecnico').html(htmlTec);
+
+            // Estados
+            let htmlEst = '';
+            combos.estados.forEach(e => htmlEst += `<option value="${e}">${e}</option>`);
+            $('#cboEstado').html(htmlEst);
+        }
+
+        $(document).ready(async function () {
+            try { await cargarCombos(); } catch (e) { console.error(e); }
+
+            // DataTable
+            tabla = $('#tbdata').DataTable({
+                processing: true,
+                serverSide: false,
+                responsive: true,
+                ajax: {
+                    url: RUTA_BASE + 'Solicitudes/Lista',
+                    type: 'GET',
+                    dataSrc: function (json) {
+                        if (json.estado) return json.lista;
+                        console.error(json.mensaje || 'Error al cargar');
+                        return [];
+                    }
+                },
+                columns: [
+                    { data: 'id', width: '6%' },
+                    {
+                        data: 'fechaSolicitud',
+                        render: function (d) {
+                            if (!d) return '';
+                            const dt = new Date(d);
+                            return dt.toLocaleString();
+                        }
+                    },
+                    { data: 'clienteNombre', defaultContent: '' },
+                    { data: 'tipoInstalacion', defaultContent: '' },
+                    {
+                        data: 'estado',
+                        render: function (d) {
+                            if (!d) return '';
+                            const map = {
+                                'Pendiente': 'badge-warning',
+                                'Programada': 'badge-info',
+                                'En Proceso': 'badge-primary',
+                                'Cerrada': 'badge-success',
+                                'Rechazada': 'badge-danger'
+                            };
+                            const cls = map[d] || 'badge-secondary';
+                            return `<span class="badge ${cls}">${d}</span>`;
+                        }
+                    },
+                    { data: 'tecnicoNombre', defaultContent: '—' },
+                    {
+                        data: null,
+                        orderable: false, searchable: false, width: '14%',
+                        render: () => `
+                            <button class="btn btn-sm btn-primary btn-editar" title="Editar"><i class="fas fa-pencil-alt"></i></button>
+                            <button class="btn btn-sm btn-danger btn-eliminar" title="Eliminar"><i class="fas fa-trash-alt"></i></button>
+                        `
+                    }
+                ],
+                dom: 'Bfrtip',
+                buttons: [
+                    { extend: 'excelHtml5', text: '<i class="far fa-file-excel"></i> Excel', titleAttr: 'Exportar a Excel', className: 'btn btn-success btn-sm' },
+                    { extend: 'print', text: '<i class="fa fa-print"></i> Imprimir', titleAttr: 'Imprimir', className: 'btn btn-secondary btn-sm' }
+                ],
+                language: {
+                    url: RUTA_BASE + 'vendor/datatables/es-ES.json'
+                }
+            });
+
+            // Nuevo
+            $('#btnNuevo').on('click', function () {
+                $('#txtId').val(0);
+                $('#txtFecha').val('');
+                $('#cboCliente').val('');
+                $('#txtTipo').val('');
+                $('#cboEstado').val('Pendiente'); // default si existe
+                $('#cboTecnico').val('');
+                $('#txtDescripcion').val('');
+                $('#modalData').modal('show');
+            });
+
+            // Guardar / Editar
+            $('#btnGuardar').on('click', async function () {
+                const error = validar();
+                if (error) {
+                    if (window.Swal) Swal.fire('Validación', error, 'warning'); else alert(error);
+                    return;
+                }
+
+                const fechaVal = $('#txtFecha').val();
+                const payload = {
+                    id: parseInt($('#txtId').val() || '0'),
+                    fechaSolicitud: fechaVal ? new Date(fechaVal).toISOString() : null,
+                    clienteId: parseInt($('#cboCliente').val()),
+                    tipoInstalacion: $('#txtTipo').val().trim() || null,
+                    descripcion: $('#txtDescripcion').val().trim() || null,
+                    estado: $('#cboEstado').val(),
+                    tecnicoAsignadoId: $('#cboTecnico').val() ? parseInt($('#cboTecnico').val()) : null
+                };
+
+                const esNuevo = payload.id === 0;
+                const url = RUTA_BASE + (esNuevo ? 'Solicitudes/Guardar' : 'Solicitudes/Editar');
+                const method = esNuevo ? 'POST' : 'PUT';
+
+                try {
+                    const resp = await fetchWithCsrf(url, {
+                        method: method,
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+                    const json = await resp.json();
+
+                    if (json.estado) {
+                        if (window.Swal) Swal.fire('Éxito', 'Registro guardado correctamente', 'success');
+                        $('#modalData').modal('hide');
+                        tabla.ajax.reload(null, false);
+                    } else {
+                        if (window.Swal) Swal.fire('Error', json.mensaje || 'No se pudo guardar', 'error'); else alert(json.mensaje || 'No se pudo guardar');
+                    }
+                } catch (e) {
+                    if (window.Swal) Swal.fire('Error', e.message, 'error'); else alert(e.message);
+                }
+            });
+
+            // Editar (cargar modal)
+            $('#tbdata').on('click', '.btn-editar', function () {
+                const data = tabla.row($(this).closest('tr')).data();
+                if (!data) return;
+
+                $('#txtId').val(data.id);
+                $('#txtFecha').val(data.fechaSolicitud ? toLocalDateTimeValue(data.fechaSolicitud) : '');
+                $('#cboCliente').val(data.clienteId || '');
+                $('#txtTipo').val(data.tipoInstalacion || '');
+                $('#cboEstado').val(data.estado || 'Pendiente');
+                $('#cboTecnico').val(data.tecnicoAsignadoId || '');
+                $('#txtDescripcion').val(data.descripcion || '');
+
+                $('#modalData').modal('show');
+            });
+
+            // Eliminar
+            $('#tbdata').on('click', '.btn-eliminar', function () {
+                const data = tabla.row($(this).closest('tr')).data();
+                if (!data) return;
+
+                const runDelete = async () => {
+                    try {
+                        const resp = await fetchWithCsrf(
+                            RUTA_BASE + 'Solicitudes/Eliminar?id=' + data.id,
+                            { method: 'DELETE' }
+                        );
+
+                        const json = await resp.json();
+                        if (json.estado) {
+                            if (window.Swal) Swal.fire('Eliminado', 'Solicitud eliminada', 'success');
+                            tabla.ajax.reload(null, false);
+                        } else {
+                            if (window.Swal) Swal.fire('No eliminado', json.mensaje || 'No se pudo eliminar', 'warning');
+                        }
+                    } catch (e) {
+                        if (window.Swal) Swal.fire('Error', e.message, 'error'); else alert(e.message);
+                    }
+                };
+
+                if (window.Swal) {
+                    Swal.fire({
+                        title: '¿Eliminar solicitud?',
+                        text: `Se eliminará la solicitud #${data.id}`,
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, eliminar',
+                        cancelButtonText: 'Cancelar'
+                    }).then(r => { if (r.isConfirmed) runDelete(); });
+                } else {
+                    if (confirm('¿Eliminar solicitud?')) runDelete();
+                }
+            });
+
+        });
+    </script>
+}

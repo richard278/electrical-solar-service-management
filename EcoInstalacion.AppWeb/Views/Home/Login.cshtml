@@ -1,0 +1,82 @@
+﻿@model EcoInstalacion.AppWeb.Models.ViewModels.VMLogin
+@{
+    ViewData["Title"] = "Iniciar sesión";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+    var returnUrl = ViewData["ReturnUrl"] as string ?? Url.Content("~/Usuarios");
+}
+
+<style>
+    .slogan {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #116520;
+        text-align: center;
+        animation: fadeInUp 2s ease-in-out;
+    }
+
+    @@keyframes fadeInUp {
+        0% {
+            opacity: 0;
+            transform: translateY(20px);
+        }
+
+        100% {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+
+    .login-card {
+        max-width: 420px;
+        margin: 40px auto;
+        padding: 25px 30px;
+        border-radius: 12px;
+        box-shadow: 0 10px 25px rgba(0,0,0,0.08);
+        background: #ffffff;
+    }
+</style>
+
+<div class="text-center mb-4">
+    <h1 class="slogan"><strong>Bienvenido a Eco Instalación</strong></h1>
+    <p>Por un futuro amigable con el medio ambiente</p>
+    <img class="img-thumbnail mb-2" width="200"
+         src="https://w7.pngwing.com/pngs/448/896/png-transparent-environmentally-friendly-cleaning-green-green-building-green-home-eco-building-logo-texas.png" />
+</div>
+
+<div class="login-card">
+    <h4 class="text-center mb-3 text-success">Iniciar sesión</h4>
+
+    <form asp-action="Login" asp-controller="Home" method="post">
+        @Html.AntiForgeryToken()
+        <input type="hidden" name="returnUrl" value="@returnUrl" />
+
+        <div class="form-group">
+            <label asp-for="Correo"></label>
+            <input asp-for="Correo" class="form-control" />
+            <span asp-validation-for="Correo" class="text-danger"></span>
+        </div>
+
+        <div class="form-group">
+            <label asp-for="Clave"></label>
+            <input asp-for="Clave" class="form-control" />
+            <span asp-validation-for="Clave" class="text-danger"></span>
+        </div>
+
+        <div class="form-group form-check text-left">
+            <input asp-for="Recordarme" class="form-check-input" />
+            <label asp-for="Recordarme" class="form-check-label">Recordarme</label>
+        </div>
+        <input type="hidden" asp-for="ReturnUrl" value="@ViewData["ReturnUrl"]" />
+
+        <button type="submit" class="btn btn-success btn-block">
+            <strong>INGRESAR</strong>
+        </button>
+    </form>
+</div>
+
+@section Scripts {
+    @{
+        await Html.RenderPartialAsync("_ValidationScriptsPartial");
+    }
+}
+

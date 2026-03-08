@@ -1,0 +1,13 @@
+﻿using EcoInstalacion.Entity;
+
+namespace EcoInstalacion.BLL.Interfaces
+{
+    public interface IClienteService
+    {
+        Task<List<Cliente>> Lista();
+        Task<Cliente?> ObtenerPorId(int id);
+        Task<Cliente> Crear(Cliente entidad);
+        Task<Cliente> Editar(Cliente entidad);
+        Task<bool> Eliminar(int id);
+    }
+}

@@ -1,0 +1,189 @@
+﻿@model EcoInstalacion.AppWeb.Models.ViewModels.VMPerfil
+
+@{
+    ViewData["Title"] = "Perfil";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+<div class="container mt-5">
+    <h2 class="text-center mb-4 text-primary fw-bold">Perfil de Usuario</h2>
+
+    <div class="row">
+        <!-- Panel de perfil -->
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0 rounded-3">
+                <div class="card-body text-center">
+                    <h5 class="card-title mb-3">Información Personal</h5>
+
+                    <form id="formPerfil" enctype="multipart/form-data" onsubmit="event.preventDefault(); guardarPerfil();">
+                        @Html.AntiForgeryToken()
+                        <div class="mb-3">
+                            <img id="imgPreview"
+                                 src="@Url.Content(!string.IsNullOrWhiteSpace(Model.UrlFoto) ? Model.UrlFoto : "~/img/user-default.png")"
+                                 alt="Foto de usuario"
+                                 class="rounded-circle border shadow-sm"
+                                 width="150" height="150" />
+                        </div>
+
+                        <div class="mb-3 text-start">
+                            <label for="fileFoto" class="form-label fw-bold">Imagen</label>
+                            <input class="form-control" type="file" id="fileFoto" name="foto" accept="image/png, image/jpeg" />
+                            <small class="text-muted">PNG/JPG máx. 2 MB.</small>
+                        </div>
+
+                        <div class="mb-3 text-start">
+                            <label for="txtCorreo" class="form-label fw-bold">Correo Electrónico</label>
+                            <input type="email" class="form-control" id="txtCorreo" name="correo" value="@Model.Correo" maxlength="100" />
+                        </div>
+
+                        <div class="mb-3 text-start">
+                            <label for="txtTelefono" class="form-label fw-bold">Teléfono</label>
+                            <input type="text" class="form-control" id="txtTelefono" name="telefono" value="@Model.Telefono" maxlength="20" />
+                        </div>
+
+                        <button id="btnGuardar" class="btn btn-success w-100" type="submit">
+                            <i class="bi bi-save"></i> Guardar Cambios
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de cambio de clave -->
+        <div class="col-md-6">
+            <div class="card shadow-lg border-0 rounded-3">
+                <div class="card-body">
+                    <h5 class="card-title mb-3 text-center">Cambio de Contraseña</h5>
+
+                    <div class="mb-3">
+                        <label for="txtActual" class="form-label fw-bold">Contraseña Actual</label>
+                        <input type="password" class="form-control" id="txtActual" autocomplete="current-password" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="txtNueva" class="form-label fw-bold">Nueva Contraseña</label>
+                        <input type="password" class="form-control" id="txtNueva" autocomplete="new-password" />
+                    </div>
+
+                    <div class="mb-3">
+                        <label for="txtConfirmar" class="form-label fw-bold">Confirmar Nueva Contraseña</label>
+                        <input type="password" class="form-control" id="txtConfirmar" autocomplete="new-password" />
+                    </div>
+
+                    <button id="btnClave" class="btn btn-primary w-100" onclick="cambiarClave()">
+                        <i class="bi bi-shield-lock"></i> Actualizar Contraseña
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // Vista previa inmediata de imagen
+        document.getElementById('fileFoto').addEventListener('change', e => {
+          const file = e.target.files[0];
+          if (!file) return;
+          const okType = ['image/png','image/jpeg'].includes(file.type);
+          const okSize = file.size <= 2 * 1024 * 1024; // 2MB
+          if (!okType || !okSize) {
+            showToast('Formato o tamaño inválido. Usa PNG/JPG máx. 2MB.', { type: 'warning' });
+            e.target.value = '';
+            return;
+          }
+          const reader = new FileReader();
+          reader.onload = ev => document.getElementById('imgPreview').src = ev.target.result;
+          reader.readAsDataURL(file);
+        });
+
+        // helper para leer el token del form
+        function getCsrf(){
+          return document.querySelector('input[name="__RequestVerificationToken"]')?.value ?? '';
+        }
+
+        // Guardar perfil (correo, teléfono e imagen)
+        async function guardarPerfil() {
+          const btn = document.getElementById('btnGuardar');
+          btn.disabled = true;
+
+          const formEl = document.getElementById('formPerfil');
+          const data = new FormData(formEl); // ya incluye __RequestVerificationToken
+
+          try {
+            const r = await fetch('/Home/GuardarPerfil', { method: 'POST', body: data });
+            const res = await r.json();
+
+            if (res.estado || res.Estado) {
+              showToast('Perfil actualizado correctamente.', { type: 'success' });
+
+              // Refrescar solo la imagen sin recargar toda la página
+              const refresh = await fetch('/Home/Perfil', { cache: 'no-store' });
+              const html = await refresh.text();
+              const doc = new DOMParser().parseFromString(html, 'text/html');
+              const newImg = doc.querySelector('#imgPreview')?.getAttribute('src') || '/uploads/users/default.png';
+
+              // Cache-busting
+              const bust = `${newImg}${newImg.includes('?') ? '&' : '?'}v=${Date.now()}`;
+              document.getElementById('imgPreview').src = bust;
+
+              // Actualiza foto navbar
+              const navPhoto = document.getElementById('navUserPhoto');
+              if (navPhoto) navPhoto.src = bust;
+            } else {
+              showToast(res.mensaje || res.Mensaje || 'No se pudo actualizar el perfil.', { type: 'danger' });
+            }
+          } catch {
+            showToast('Error de red al guardar el perfil.', { type: 'danger' });
+          } finally {
+            btn.disabled = false;
+          }
+        }
+
+        // Cambiar contraseña
+        async function cambiarClave() {
+          const actual = document.getElementById('txtActual').value.trim();
+          const nueva = document.getElementById('txtNueva').value.trim();
+          const confirmar = document.getElementById('txtConfirmar').value.trim();
+
+          if (!actual || !nueva || !confirmar) {
+            showToast('Completa todos los campos.', { type: 'warning' }); return;
+          }
+          if (nueva !== confirmar) {
+            showToast('Las contraseñas no coinciden.', { type: 'warning' }); return;
+          }
+          if (nueva.length < 6) {
+            showToast('La nueva contraseña debe tener al menos 6 caracteres.', { type: 'warning' }); return;
+          }
+
+          const btn = document.getElementById('btnClave');
+          btn.disabled = true;
+
+          try {
+            const token = getCsrf(); // <<--- AQUI OBTENEMOS EL TOKEN
+            const body = new URLSearchParams({ actual, nueva });
+
+            const r = await fetch('/Home/CambiarClave', {
+              method: 'POST',
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+                'RequestVerificationToken': token
+              },
+              body
+            });
+            const data = await r.json();
+
+            if (data.estado || data.Estado) {
+              showToast('Contraseña actualizada correctamente.', { type: 'success' });
+              ['txtActual','txtNueva','txtConfirmar'].forEach(id => document.getElementById(id).value = '');
+            } else {
+              showToast(data.mensaje || data.Mensaje || 'No se pudo actualizar la contraseña.', { type: 'danger' });
+            }
+          } catch {
+            showToast('Error de red al cambiar la contraseña.', { type: 'danger' });
+          } finally {
+            btn.disabled = false;
+          }
+        }
+    </script>
+}

@@ -1,0 +1,328 @@
+﻿<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="utf-8" />
+    <meta http-equiv="X-UA-Compatible" content="IE=edge" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+    <meta name="description" content="" />
+    <meta name="author" content="Instalación convencional y fotovoltaica" />
+
+    <title>Install Eco-System @ViewData["Title"]</title>
+
+    <!-- Custom fonts -->
+    <link href="~/vendor/fontawesome-free/css/all.min.css" rel="stylesheet" type="text/css" />
+    <link href="https://fonts.googleapis.com/css?family=Nunito:200,200i,300,300i,400,400i,600,600i,700,700i,800,800i,900,900i" rel="stylesheet" />
+    <!-- Font Awesome CDN (opcional, por si falta algún ícono) -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.7.2/css/all.min.css" rel="stylesheet" />
+
+    <!-- sb-admin-2 / estilos propios -->
+    <link href="~/css/sb-admin-2.css" rel="stylesheet" />
+    <link href="~/vendor/toastr/toastr.min.css" rel="stylesheet" />
+    <link href="~/vendor/sweetalert/sweetalert.css" rel="stylesheet" />
+
+    @await RenderSectionAsync("Estilos", required: false)
+</head>
+
+<body id="page-top">
+    <!-- Toasts (top-right) -->
+    <div aria-live="polite" aria-atomic="true"
+         class="position-fixed"
+         style="z-index:1080; top:1rem; right:1rem;">
+        <div id="toastStack" class="toast-container"></div>
+    </div>
+
+    <!-- Page Wrapper -->
+    <div id="wrapper">
+        <!-- Formulario global con Antifogery (en lugar de tokens por vista) -->
+        <form id="__AjaxAntiForgeryForm" asp-controller="Home" asp-action="Index" method="post">
+            @Html.AntiForgeryToken()
+        </form>
+
+        <!-- Sidebar -->
+        <ul class="navbar-nav bg-gradient-primary sidebar sidebar-dark accordion" id="accordionSidebar">
+
+            <!-- Brand -->
+            <a class="sidebar-brand d-flex align-items-center justify-content-center" href="@Url.Action("Index", "Home")">
+                <div class="sidebar-brand-icon">
+                    <i class="fas fa-desktop"></i>
+                </div>
+                <div class="sidebar-brand-text mx-3">Eco Instalación</div>
+            </a>
+
+            <hr class="sidebar-divider my-0" />
+
+            <!-- Dashboard -->
+            <li class="nav-item">
+                <a class="nav-link" href="@Url.Action("Index", "Home")">
+                    <i class="fas fa-fw fa-tachometer-alt"></i>
+                    <span>Bienvenida</span>
+                </a>
+            </li>
+
+            <!-- Administración -->
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseAdministracion">
+                    <i class="fa-solid fa-house"></i>
+                    <span>Administración</span>
+                </a>
+                <div id="collapseAdministracion" class="collapse" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="@Url.Action("Index", "Roles")">Roles</a>
+                        <a class="collapse-item" href="@Url.Action("Index", "Usuarios")">Usuarios</a>
+                    </div>
+                </div>
+            </li>
+
+            <!-- Atención -->
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseVenta">
+                    <i class="fas fa-fw fa-tags"></i>
+                    <span>Atención</span>
+                </a>
+                <div id="collapseVenta" class="collapse" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="@Url.Action("Index", "VisitasTecnicas")">Visitas Técnicas</a>
+                        <a class="collapse-item" href="@Url.Action("Index", "Solicitudes")">Solicitudes</a>
+                        <a class="collapse-item" href="@Url.Action("Index", "Clientes")">Clientes</a>
+                        <a class="collapse-item" href="@Url.Action("Index", "Tecnicos")">Técnicos</a>
+                    </div>
+                </div>
+            </li>
+
+            <!-- Reportes -->
+            <li class="nav-item">
+                <a class="nav-link collapsed" href="#" data-toggle="collapse" data-target="#collapseReportes">
+                    <i class="fas fa-fw fa-chart-area"></i>
+                    <span>Reportes</span>
+                </a>
+                <div id="collapseReportes" class="collapse" data-parent="#accordionSidebar">
+                    <div class="bg-white py-2 collapse-inner rounded">
+                        <a class="collapse-item" href="@Url.Action("ReporteTecnicos", "Reportes")">Técnicos Asignados</a>
+                    </div>
+                </div>
+            </li>
+
+            <hr class="sidebar-divider" />
+
+            <!-- Toggler -->
+            <div class="text-center d-none d-md-inline">
+                <button class="rounded-circle border-0" id="sidebarToggle"></button>
+            </div>
+        </ul>
+        <!-- End Sidebar -->
+        <!-- Content Wrapper -->
+        <div id="content-wrapper" class="d-flex flex-column">
+            <div id="content">
+
+                <!-- Topbar -->
+                <nav class="navbar navbar-expand navbar-light bg-white topbar mb-4 static-top shadow">
+                    <button id="sidebarToggleTop" class="btn btn-link d-md-none rounded-circle mr-3">
+                        <i class="fa fa-bars"></i>
+                    </button>
+
+                    <ul class="navbar-nav ml-auto">
+                        <div class="topbar-divider d-none d-sm-block"></div>
+
+                        <!-- User -->
+                        <li class="nav-item dropdown no-arrow">
+                            <a class="nav-link dropdown-toggle" href="#" id="userDropdown" role="button"
+                               data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                                <span id="navUserName" class="mr-2 d-none d-lg-inline text-gray-600 small">Perfil</span>
+                                <img id="navUserPhoto" class="img-profile rounded-circle border"
+                                     src="/uploads/users/default.png" alt="Usuario" width="35" height="35" />
+                            </a>
+
+                            <div class="dropdown-menu dropdown-menu-right shadow animated--grow-in"
+                                 aria-labelledby="userDropdown">
+                                <a class="dropdown-item" href="@Url.Action("Perfil", "Home")">
+                                    <i class="fas fa-user fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Perfil
+                                </a>
+                                <div class="dropdown-divider"></div>
+
+                                <form id="frmLogout" asp-controller="Home" asp-action="Logout" method="post" style="display:none;">
+                                    @Html.AntiForgeryToken()
+                                </form>
+
+                                <a class="dropdown-item" href="#" id="btnLogout">
+                                    <i class="fas fa-sign-out-alt fa-sm fa-fw mr-2 text-gray-400"></i>
+                                    Salir
+                                </a>
+
+                            </div>
+                        </li>
+                    </ul>
+                </nav>
+                <!-- End Topbar -->
+
+                <div class="container-fluid">
+                    @RenderBody()
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <footer class="sticky-footer bg-white">
+                <div class="container my-auto">
+                    <div class="copyright text-center my-auto">
+                        <span>Copyright &copy; Your Website 2025</span>
+                    </div>
+                </div>
+            </footer>
+        </div>
+        <!-- End Content Wrapper -->
+    </div>
+    <!-- End Page Wrapper -->
+    <!-- Scripts base -->
+    <script src="~/vendor/jquery/jquery.min.js"></script>
+    <script src="~/vendor/bootstrap/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script src="~/vendor/jquery-easing/jquery.easing.min.js"></script>
+
+    <!-- App -->
+    <script src="~/js/sb-admin-2.js"></script>
+    <script src="~/vendor/toastr/toastr.min.js"></script>
+    <script src="~/vendor/sweetalert/sweetalert.js"></script>
+    <script src="~/vendor/loadingoverlay/loadingoverlay.min.js"></script>
+    <script src="~/js/Site.js"></script>
+
+    @await RenderSectionAsync("Scripts", required: false)
+
+    <script>
+        document.addEventListener("DOMContentLoaded", function () {
+
+            const btnLogout = document.getElementById("btnLogout");
+            const frmLogout = document.getElementById("frmLogout");
+
+            if (btnLogout) {
+                btnLogout.addEventListener("click", function (e) {
+                    e.preventDefault();
+
+                    Swal.fire({
+                        title: '¿Cerrar sesión?',
+                        text: 'Tu sesión actual será finalizada.',
+                        icon: 'warning',
+                        showCancelButton: true,
+                        confirmButtonText: 'Sí, cerrar sesión',
+                        cancelButtonText: 'Cancelar',
+                        reverseButtons: true,
+                        confirmButtonColor: '#1cc88a',
+                        cancelButtonColor: '#d33',
+                        backdrop: `rgba(0,0,0,0.4)`
+                    }).then((result) => {
+                        if (result.isConfirmed) {
+                            Swal.fire({
+                                title: 'Cerrando sesión...',
+                                text: 'Por favor espera.',
+                                allowOutsideClick: false,
+                                allowEscapeKey: false,
+                                didOpen: () => {
+                                    Swal.showLoading();
+                                    frmLogout.submit();
+                                }
+                            });
+                        }
+                    });
+                });
+            }
+
+        });
+    </script>
+
+
+
+    <script>
+        // Toast helper (compatible BS4/BS5)
+        function showToast(message, { title = 'EcoInstalación', type = 'info', delay = 4000 } = {}) {
+            const container = document.getElementById('toastStack') || (function () {
+                const c = document.createElement('div');
+                c.id = 'toastStack';
+                c.className = 'toast-container';
+                c.style.zIndex = 1080;
+                document.body.appendChild(c);
+                return c;
+            })();
+
+            const bgMap = {
+                success: 'bg-success text-white',
+                info: 'bg-info text-white',
+                warning: 'bg-warning',
+                danger: 'bg-danger text-white'
+            };
+
+            const toast = document.createElement('div');
+            toast.className = 'toast shadow';
+            toast.setAttribute('role', 'alert');
+            toast.setAttribute('aria-live', 'assertive');
+            toast.setAttribute('aria-atomic', 'true');
+            toast.setAttribute('data-delay', String(delay));
+            toast.dataset.bsAutohide = 'true';
+            toast.dataset.bsDelay = String(delay);
+
+            toast.innerHTML = `
+                <div class="toast-header ${bgMap[type] || bgMap.info}">
+                  <strong class="mr-auto me-auto">${title}</strong>
+                  <button type="button" class="ml-2 mb-1 btn-close close"
+                          data-dismiss="toast" data-bs-dismiss="toast"
+                          aria-label="Close"></button>
+                </div>
+                <div class="toast-body">${message}</div>
+            `;
+
+            container.appendChild(toast);
+
+            try {
+                if (window.bootstrap && bootstrap.Toast) {
+                    new bootstrap.Toast(toast, { autohide: true, delay }).show();
+                } else if (window.jQuery && $(toast).toast) {
+                    $(toast).toast({ autohide: true, delay }).toast('show');
+                } else {
+                    toast.style.display = 'block';
+                    setTimeout(() => toast.remove(), delay + 500);
+                }
+            } catch {
+                toast.style.display = 'block';
+                setTimeout(() => toast.remove(), delay + 500);
+            }
+
+            toast.addEventListener('hidden.bs.toast', () => toast.remove());
+        }
+
+        // Opcional: refresco ligero del avatar (anti-caché)
+        window.addEventListener('load', () => {
+            const img = document.getElementById('navUserPhoto');
+            if (img && img.src && !img.src.includes('default.png')) {
+                img.src = img.src + (img.src.includes('?') ? '&' : '?') + 'v=' + Date.now();
+            }
+        });
+    </script>
+    <script>
+        // Hace fetch de la info del usuario para el header
+        async function refreshNavUser() {
+          try {
+            const r = await fetch('/Home/NavInfo', { cache: 'no-store' });
+            if (!r.ok) return;
+            const data = await r.json();
+
+            const nameEl = document.getElementById('navUserName');
+            const photoEl = document.getElementById('navUserPhoto');
+
+            if (nameEl && data.nombre) nameEl.textContent = data.nombre;
+
+            if (photoEl && data.foto) {
+              // Rompe caché del navegador para que se vea la imagen actual
+              const bust = `?v=${Date.now()}`;
+              // Evita duplicar ?v si ya lo tiene
+              const clean = data.foto.split('?')[0];
+              photoEl.src = clean + bust;
+            }
+          } catch { /* noop */ }
+        }
+
+        // Cargar al entrar a cualquier página
+        document.addEventListener('DOMContentLoaded', refreshNavUser);
+        // Exponerla para que otras vistas puedan llamarla tras actualizar
+        window.refreshNavUser = refreshNavUser;
+    </script>
+
+</body>
+</html>

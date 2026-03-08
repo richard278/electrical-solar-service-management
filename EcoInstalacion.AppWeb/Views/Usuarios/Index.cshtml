@@ -1,0 +1,426 @@
+﻿@{
+    ViewData["Title"] = "Usuarios";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Estilos {
+    <link href="~/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet" />
+    <link href="~/vendor/datatables/extensiones/css/responsive.dataTables.min.css" rel="stylesheet" />
+    <link href="~/vendor/datatables/extensiones/css/buttons.dataTables.min.css" rel="stylesheet" />
+
+    <style>
+        .modal .form-group label {
+            font-weight: 600;
+        }
+
+        .avatar-preview {
+            width: 70px;
+            height: 70px;
+            border-radius: 50%;
+            object-fit: cover;
+            border: 2px solid #ddd;
+        }
+    </style>
+}
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 bg-second-primary">
+        <h6 class="m-0 font-weight-bold text-white">LISTADO USUARIOS</h6>
+    </div>
+
+    <div class="card-body">
+        <div class="row mb-2">
+            <div class="col-sm-4">
+                <button class="btn btn-outline-success" id="btnNuevo">
+                    <i class="fas fa-user-plus"></i> NUEVO USUARIO
+                </button>
+            </div>
+        </div>
+
+        <div class="row">
+            <div class="col-sm-12">
+                <table id="tbUsuarios" class="table table-bordered nowrap stripe" style="width:100%">
+                    <thead>
+                        <tr>
+                            <th>Foto</th>
+                            <th>Nombre</th>
+                            <th>Correo</th>
+                            <th>Teléfono</th>
+                            <th>Rol</th>
+                            <th>Activo</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear/Editar Usuario -->
+<div class="modal fade" id="modalUsuario" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title"><strong id="tituloModalUsuario">Nuevo usuario</strong></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- Form SÓLO para agrupar controles. El AntiForgery viene del form global en _Layout -->
+                <form id="frmUsuario" enctype="multipart/form-data">
+                    <input type="hidden" id="txtIdUsuario" value="0" />
+                    <input type="hidden" id="txtNombreFotoActual" />
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-8">
+                            <label for="txtNombre">Nombre completo</label>
+                            <input type="text" id="txtNombre" class="form-control form-control-sm" maxlength="150" />
+                        </div>
+                        <div class="form-group col-sm-4 text-center">
+                            <label>Foto</label>
+                            <div>
+                                <img id="imgPreview" class="avatar-preview mb-2"
+                                     src="/uploads/users/default.png" alt="Foto usuario" />
+                            </div>
+                            <input type="file" id="fileFoto" class="form-control-file form-control-sm"
+                                   accept="image/*" />
+                            <small class="text-muted d-block">Opcional (JPG / PNG)</small>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-6">
+                            <label for="txtCorreo">Correo</label>
+                            <input type="email" id="txtCorreo" class="form-control form-control-sm" maxlength="120" />
+                        </div>
+                        <div class="form-group col-sm-3">
+                            <label for="txtTelefono">Teléfono (8 dígitos)</label>
+                            <input type="text" id="txtTelefono" class="form-control form-control-sm"
+                                   maxlength="8" placeholder="########" />
+                        </div>
+                        <div class="form-group col-sm-3">
+                            <label for="cboRol">Rol</label>
+                            <select id="cboRol" class="form-control form-control-sm">
+                                <option value="">-- Seleccione --</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-3">
+                            <label for="cboActivo">Estado</label>
+                            <select id="cboActivo" class="form-control form-control-sm">
+                                <option value="1">Activo</option>
+                                <option value="0">Inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button type="button" class="btn btn-primary btn-sm" id="btnGuardarUsuario">Guardar</button>
+                <button type="button" class="btn btn-secondary btn-sm" data-dismiss="modal">Cancelar</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Datatables -->
+    <script src="~/vendor/datatables/jquery.dataTables.min.js"></script>
+    <script src="~/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.responsive.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.buttons.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/jszip.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.html5.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.print.min.js"></script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        const RUTA = "@Url.Content("~/")";
+        let tablaUsuarios;
+        let listaRoles = [];
+
+        // 🔐 Helper CSRF (ya usábamos algo similar en Técnicos)
+        function fetchWithCsrf(url, options) {
+            const token = window.getCsrfToken ? window.getCsrfToken() : '';
+            const opts = options || {};
+            const headers = opts.headers || {};
+
+            if (token) {
+                headers['RequestVerificationToken'] = token;
+            }
+
+            return fetch(url, { ...opts, headers });
+        }
+
+        function badgeActivo(valor) {
+            return valor === 1
+                ? '<span class="badge badge-success">Sí</span>'
+                : '<span class="badge badge-secondary">No</span>';
+        }
+
+        // 🔎 Validación cliente coherente con VMUsuario
+        function validarUsuario() {
+            const nombre = $('#txtNombre').val().trim();
+            const correo = $('#txtCorreo').val().trim();
+            const tel = $('#txtTelefono').val().trim();
+            const rol = $('#cboRol').val();
+
+            if (!nombre) return "El nombre es obligatorio.";
+            if (!correo) return "El correo es obligatorio.";
+            const regexCorreo = /^[^@@\s]+@@[^@@\s]+\.[^@@\s]+$/;
+            if (!regexCorreo.test(correo)) return "El correo no tiene un formato válido.";
+
+            if (!tel) return "El teléfono es obligatorio.";
+            if (!/^\d{8}$/.test(tel)) return "El teléfono debe tener exactamente 8 dígitos.";
+
+            if (!rol) return "Debe seleccionar un rol para el usuario.";
+
+            return null;
+        }
+
+        // Restringir entrada del teléfono a sólo dígitos
+        function configurarMascaraTelefono() {
+            $('#txtTelefono').on('input', function () {
+                this.value = this.value.replace(/\D/g, '').substring(0, 8);
+            });
+        }
+
+        function limpiarModalUsuario() {
+            $('#txtIdUsuario').val(0);
+            $('#txtNombre').val('');
+            $('#txtCorreo').val('');
+            $('#txtTelefono').val('');
+            $('#cboRol').val('');
+            $('#cboActivo').val('1');
+            $('#fileFoto').val('');
+            $('#txtNombreFotoActual').val('');
+            $('#imgPreview').attr('src', '/uploads/users/default.png');
+            $('#tituloModalUsuario').text('Nuevo usuario');
+        }
+
+        async function cargarRoles() {
+            try {
+                const resp = await fetch(RUTA + "Usuarios/ListaRoles");
+                const data = await resp.json();
+                listaRoles = data || [];
+
+                const cbo = $('#cboRol');
+                cbo.empty();
+                cbo.append('<option value="">-- Seleccione --</option>');
+                listaRoles.forEach(r => {
+                    cbo.append(`<option value="${r.idRol}">${r.descripcion}</option>`);
+                });
+            } catch (e) {
+                console.error("Error cargando roles:", e);
+            }
+        }
+
+        $(document).ready(function () {
+
+            configurarMascaraTelefono();
+            cargarRoles();
+
+            // ⚙️ DataTable Usuarios
+            tablaUsuarios = $("#tbUsuarios").DataTable({
+                processing: true,
+                responsive: true,
+                ajax: {
+                    url: RUTA + "Usuarios/ListaUsuarios",
+                    type: "GET",
+                    dataSrc: function (json) {
+                        // El controlador devuelve directamente List<VMUsuario>
+                        if (Array.isArray(json)) return json;
+                        return [];
+                    }
+                },
+                columns: [
+                    {
+                        data: "urlFoto",
+                        orderable: false,
+                        searchable: false,
+                        render: function (d, type, row) {
+                            const src = d || "/uploads/users/default.png";
+                            return `<img src="${src}" class="avatar-preview" alt="foto" />`;
+                        }
+                    },
+                    { data: "nombre", defaultContent: "" },
+                    { data: "correo", defaultContent: "" },
+                    { data: "telefono", defaultContent: "" },
+                    { data: "nombreRol", defaultContent: "" },
+                    {
+                        data: "esActivo",
+                        render: function (d) {
+                            // VMUsuario.EsActivo es int? → 1/0
+                            const val = d === 1 || d === "1";
+                            return badgeActivo(val ? 1 : 0);
+                        }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        render: function () {
+                            return `
+                                <button class="btn btn-sm btn-primary btn-editar" title="Editar">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger btn-eliminar" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>`;
+                        }
+                    }
+                ],
+                dom: "Bfrtip",
+                buttons: [
+                    { extend: "excelHtml5", text: "Excel", className: "btn btn-secondary btn-sm" },
+                    { extend: "print", text: "Imprimir", className: "btn btn-secondary btn-sm" }
+                ],
+                language: {
+                    url: RUTA + "vendor/datatables/es-ES.json"
+                }
+            });
+
+            // 👉 Nuevo usuario
+            $("#btnNuevo").on("click", function () {
+                limpiarModalUsuario();
+                $("#modalUsuario").modal("show");
+            });
+
+            // ✏️ Editar usuario (desde la tabla)
+            $("#tbUsuarios tbody").on("click", "button.btn-editar", function () {
+                const data = tablaUsuarios.row($(this).closest("tr")).data();
+                if (!data) return;
+
+                limpiarModalUsuario();
+                $('#tituloModalUsuario').text('Editar usuario');
+
+                $('#txtIdUsuario').val(data.idUsuario);
+                $('#txtNombre').val(data.nombre || '');
+                $('#txtCorreo').val(data.correo || '');
+                $('#txtTelefono').val(data.telefono || '');
+                $('#cboRol').val(data.idRol || '');
+                $('#cboActivo').val(data.esActivo != null ? data.esActivo.toString() : '1');
+                $('#txtNombreFotoActual').val(data.nombreFoto || '');
+
+                const foto = data.urlFoto || "/uploads/users/default.png";
+                $('#imgPreview').attr('src', foto);
+
+                $("#modalUsuario").modal("show");
+            });
+
+            // 🗑️ Eliminar usuario
+            $("#tbUsuarios tbody").on("click", "button.btn-eliminar", function () {
+                const data = tablaUsuarios.row($(this).closest("tr")).data();
+                if (!data) return;
+
+                const runDelete = async () => {
+                    try {
+                        const resp = await fetchWithCsrf(
+                            RUTA + "Usuarios/Eliminar?idUsuario=" + data.idUsuario,
+                            { method: "DELETE" }
+                        );
+                        const json = await resp.json();
+
+                        if (json.estado) {
+                            Swal.fire("Eliminado", json.mensaje || "Usuario eliminado.", "success");
+                            tablaUsuarios.ajax.reload(null, false);
+                        } else {
+                            Swal.fire("Aviso", json.mensaje || "No se pudo eliminar.", "info");
+                        }
+                    } catch (e) {
+                        Swal.fire("Error", e.message, "error");
+                    }
+                };
+
+                Swal.fire({
+                    title: "¿Eliminar usuario?",
+                    text: data.nombre,
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Sí, eliminar",
+                    cancelButtonText: "Cancelar"
+                }).then(r => { if (r.isConfirmed) runDelete(); });
+            });
+
+            // 📤 Guardar (Crear / Editar)
+            $("#btnGuardarUsuario").on("click", async function () {
+
+                const error = validarUsuario();
+                if (error) {
+                    Swal.fire("Validación", error, "warning");
+                    return;
+                }
+
+                const payload = {
+                    idUsuario: parseInt($("#txtIdUsuario").val() || "0"),
+                    nombre: $("#txtNombre").val().trim(),
+                    correo: $("#txtCorreo").val().trim(),
+                    telefono: $("#txtTelefono").val().trim(),
+                    idRol: parseInt($("#cboRol").val() || "0"),
+                    esActivo: parseInt($("#cboActivo").val() || "1"),
+                    nombreFoto: $("#txtNombreFotoActual").val() || null
+                };
+
+                const esNuevo = payload.idUsuario === 0;
+                const url = RUTA + (esNuevo ? "Usuarios/Crear" : "Usuarios/Editar");
+                const method = esNuevo ? "POST" : "PUT";
+
+                const formData = new FormData();
+                formData.append("modelo", JSON.stringify(payload));
+
+                const fileInput = document.getElementById("fileFoto");
+                if (fileInput.files && fileInput.files.length > 0) {
+                    formData.append("foto", fileInput.files[0]);
+                }
+
+                try {
+                    const resp = await fetchWithCsrf(url, {
+                        method: method,
+                        body: formData
+                        // NO seteamos Content-Type, el navegador lo ajusta para multipart/form-data
+                    });
+
+                    const json = await resp.json();
+
+                    if (json.estado) {
+                        $("#modalUsuario").modal("hide");
+                        Swal.fire("Listo", "Cambios guardados correctamente.", "success");
+                        tablaUsuarios.ajax.reload(null, false);
+                    } else {
+                        Swal.fire("Aviso", json.mensaje || "No se pudo guardar.", "info");
+                    }
+                } catch (e) {
+                    Swal.fire("Error", e.message, "error");
+                }
+            });
+
+            // 🔍 Vista previa al seleccionar foto
+            $("#fileFoto").on("change", function () {
+                const file = this.files && this.files[0];
+                if (!file) {
+                    $("#imgPreview").attr("src", "/uploads/users/default.png");
+                    return;
+                }
+
+                const reader = new FileReader();
+                reader.onload = function (e) {
+                    $("#imgPreview").attr("src", e.target.result);
+                };
+                reader.readAsDataURL(file);
+            });
+
+        });
+    </script>
+}

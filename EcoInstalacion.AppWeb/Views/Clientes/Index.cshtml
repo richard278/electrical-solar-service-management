@@ -1,0 +1,367 @@
+﻿@{
+    ViewData["Title"] = "Clientes";
+    Layout = "~/Views/Shared/_Layout.cshtml";
+}
+
+@section Estilos {
+    <link href="~/vendor/datatables/dataTables.bootstrap4.min.css" rel="stylesheet" />
+    <link href="~/vendor/datatables/extensiones/css/responsive.dataTables.min.css" rel="stylesheet" />
+    <link href="~/vendor/datatables/extensiones/css/buttons.dataTables.min.css" rel="stylesheet" />
+    <style>
+        .modal .form-group label {
+            font-weight: 600;
+        }
+    </style>
+}
+
+<div class="card shadow mb-4">
+    <div class="card-header py-3 bg-second-primary d-flex justify-content-between align-items-center">
+        <h6 class="m-0 font-weight-bold text-white">LISTADO DE CLIENTES</h6>
+        <button class="btn btn-outline-success" id="btnNuevo">
+            <i class="fas fa-user-plus"></i> NUEVO CLIENTE
+        </button>
+    </div>
+
+    <div class="card-body">
+        <div class="table-responsive">
+            <table class="table table-bordered table-striped w-100" id="tbClientes">
+                <thead>
+                    <tr>
+                        <th>Id</th>
+                        <th>Nombre completo</th>
+                        <th>DUI</th>
+                        <th>Teléfono</th>
+                        <th>Correo</th>
+                        <th>Dirección</th>
+                        <th>Activo</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody></tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Crear/Editar -->
+<div class="modal fade" id="modalCliente" tabindex="-1" role="dialog" aria-hidden="true" data-backdrop="static">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content">
+
+            <div class="modal-header">
+                <h5 class="modal-title"><strong id="tituloModal">Nuevo cliente</strong></h5>
+                <button type="button" class="close" data-dismiss="modal" aria-label="Cerrar">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+
+            <div class="modal-body">
+                <!-- El token viene del formulario global (_Layout) vía getCsrfToken() -->
+                <form id="frmCliente">
+                    <input type="hidden" id="txtId" value="0" />
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-6">
+                            <label for="txtNombre">Nombre completo</label>
+                            <input type="text" id="txtNombre" class="form-control form-control-sm"
+                                   maxlength="100" />
+                        </div>
+                        <div class="form-group col-sm-3">
+                            <label for="txtDui">DUI</label>
+                            <input type="text" id="txtDui" class="form-control form-control-sm"
+                                   placeholder="########-#" maxlength="10" />
+                        </div>
+                        <div class="form-group col-sm-3">
+                            <label for="cboActivo">Estado</label>
+                            <select id="cboActivo" class="form-control form-control-sm">
+                                <option value="1">Activo</option>
+                                <option value="0">Inactivo</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-row">
+                        <div class="form-group col-sm-3">
+                            <label for="txtTelefono">Teléfono</label>
+                            <input type="text" id="txtTelefono" class="form-control form-control-sm"
+                                   placeholder="######## o ####-####" maxlength="9" />
+                        </div>
+                        <div class="form-group col-sm-4">
+                            <label for="txtCorreo">Correo electrónico</label>
+                            <input type="email" id="txtCorreo" class="form-control form-control-sm"
+                                   maxlength="100" />
+                        </div>
+                        <div class="form-group col-sm-5">
+                            <label for="txtDireccion">Dirección</label>
+                            <input type="text" id="txtDireccion" class="form-control form-control-sm"
+                                   maxlength="150" />
+                        </div>
+                    </div>
+
+                </form>
+            </div>
+
+            <div class="modal-footer">
+                <button class="btn btn-primary btn-sm" id="btnGuardar" type="button">Guardar</button>
+                <button class="btn btn-secondary btn-sm" data-dismiss="modal" type="button">Cancelar</button>
+            </div>
+
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <!-- Datatables -->
+    <script src="~/vendor/datatables/jquery.dataTables.min.js"></script>
+    <script src="~/vendor/datatables/dataTables.bootstrap4.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.responsive.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/dataTables.buttons.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/jszip.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.html5.min.js"></script>
+    <script src="~/vendor/datatables/extensiones/js/buttons.print.min.js"></script>
+
+    <!-- SweetAlert2 -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+
+    <script>
+        const RUTA_BASE = '@Url.Content("~/")';
+        let tabla;
+
+        // 🔐 Helper CSRF (usa getCsrfToken() que ya tienes en Site.js)
+        function fetchWithCsrf(url, options) {
+            const token = window.getCsrfToken ? window.getCsrfToken() : '';
+            const opts = options || {};
+            const headers = opts.headers || {};
+
+            if (token) {
+                headers['RequestVerificationToken'] = token;
+            }
+
+            return fetch(url, { ...opts, headers });
+        }
+
+        // Regex iguales a los del backend (ValidacionesRegex)
+        const REGEX_DUI = /^\d{8}-\d$/;
+        const REGEX_TEL = /^(\d{4}-\d{4}|\d{8})$/;
+        const REGEX_CORREO = /^[^@@\s]+@@[^@@\s]+\.[^@@\s]+$/;
+
+        function badgeActivo(esActivo) {
+            const val = esActivo === true || esActivo === 1 || esActivo === "true" || esActivo === "1";
+            const cls = val ? "badge-info" : "badge-secondary";
+            const txt = val ? "Activo" : "Inactivo";
+            return `<span class="badge ${cls}">${txt}</span>`;
+        }
+
+        function limpiarModal() {
+            $("#txtId").val(0);
+            $("#txtNombre").val("");
+            $("#txtDui").val("");
+            $("#txtTelefono").val("");
+            $("#txtCorreo").val("");
+            $("#txtDireccion").val("");
+            $("#cboActivo").val("1");
+            $("#tituloModal").text("Nuevo cliente");
+        }
+
+        function validar() {
+            const nombre = $("#txtNombre").val().trim();
+            const dui = $("#txtDui").val().trim();
+            const tel = $("#txtTelefono").val().trim();
+            const correo = $("#txtCorreo").val().trim();
+            const dir = $("#txtDireccion").val().trim();
+
+            if (!nombre)
+                return "El nombre completo es obligatorio.";
+            if (nombre.length > 100)
+                return "El nombre completo supera los 100 caracteres.";
+
+            if (!dui)
+                return "El DUI es obligatorio.";
+            if (!REGEX_DUI.test(dui))
+                return "El DUI debe tener el formato ########-#.";
+
+            if (tel && !REGEX_TEL.test(tel))
+                return "El teléfono debe ser ######## o ####-####.";
+
+            if (correo && !REGEX_CORREO.test(correo))
+                return "El correo electrónico no es válido.";
+
+            if (dir.length > 150)
+                return "La dirección supera los 150 caracteres.";
+
+            return null;
+        }
+
+        $(document).ready(function () {
+
+            $.fn.dataTable.ext.errMode = 'none';
+
+            tabla = $("#tbClientes").DataTable({
+                processing: true,
+                responsive: true,
+                ajax: {
+                    url: RUTA_BASE + "Clientes/Lista",
+                    type: "GET",
+                    dataSrc: function (json) {
+                        // Soporta tanto: [ {..} ] como { estado, lista }
+                        if (Array.isArray(json)) return json;
+                        if (json && json.estado && Array.isArray(json.lista)) return json.lista;
+                        console.error("Respuesta inesperada de Clientes/Lista:", json);
+                        return [];
+                    },
+                    error: function (xhr, error, thrown) {
+                        console.error("Error DataTables AJAX Clientes:", xhr.status, xhr.responseText);
+                        Swal.fire("Error", "No se pudieron cargar los clientes.", "error");
+                    }
+                },
+                columns: [
+                    { data: "id", width: "6%" },
+                    { data: "nombreCompleto", defaultContent: "" },
+                    { data: "dui", defaultContent: "" },
+                    { data: "telefono", defaultContent: "" },
+                    { data: "correo", defaultContent: "" },
+                    { data: "direccion", defaultContent: "" },
+                    {
+                        data: "esActivo",
+                        render: function (d) { return badgeActivo(d); }
+                    },
+                    {
+                        data: null,
+                        orderable: false,
+                        searchable: false,
+                        width: "16%",
+                        render: function () {
+                            return `
+                                <button class="btn btn-sm btn-primary btn-editar" title="Editar">
+                                    <i class="fas fa-pencil-alt"></i>
+                                </button>
+                                <button class="btn btn-sm btn-danger btn-eliminar" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>`;
+                        }
+                    }
+                ],
+                dom: "Bfrtip",
+                buttons: [
+                    {
+                        extend: "excelHtml5",
+                        text: '<i class="far fa-file-excel"></i> Excel',
+                        titleAttr: "Exportar a Excel",
+                        className: "btn btn-success btn-sm"
+                    },
+                    {
+                        extend: "print",
+                        text: '<i class="fa fa-print"></i> Imprimir',
+                        titleAttr: "Imprimir",
+                        className: "btn btn-secondary btn-sm"
+                    }
+                ],
+                language: {
+                    url: RUTA_BASE + "vendor/datatables/es-ES.json"
+                }
+            });
+
+            // Nuevo
+            $("#btnNuevo").on("click", function () {
+                limpiarModal();
+                $("#modalCliente").modal("show");
+            });
+
+            // Editar (abrir modal)
+            $("#tbClientes").on("click", ".btn-editar", function () {
+                const data = tabla.row($(this).closest("tr")).data();
+                if (!data) return;
+
+                $("#txtId").val(data.id);
+                $("#txtNombre").val(data.nombreCompleto || "");
+                $("#txtDui").val(data.dui || "");
+                $("#txtTelefono").val(data.telefono || "");
+                $("#txtCorreo").val(data.correo || "");
+                $("#txtDireccion").val(data.direccion || "");
+                $("#cboActivo").val(
+                    (data.esActivo === true || data.esActivo === 1 || data.esActivo === "true" || data.esActivo === "1")
+                        ? "1"
+                        : "0"
+                );
+                $("#tituloModal").text("Editar cliente");
+                $("#modalCliente").modal("show");
+            });
+
+            // Guardar (crear / editar)
+            $("#btnGuardar").on("click", async function () {
+                const error = validar();
+                if (error) {
+                    Swal.fire("Validación", error, "warning");
+                    return;
+                }
+
+                const payload = {
+                    id: parseInt($("#txtId").val() || "0"),
+                    nombreCompleto: $("#txtNombre").val().trim(),
+                    dui: $("#txtDui").val().trim(),
+                    telefono: $("#txtTelefono").val().trim() || null,
+                    correo: $("#txtCorreo").val().trim() || null,
+                    direccion: $("#txtDireccion").val().trim() || null,
+                    esActivo: $("#cboActivo").val() === "1"
+                };
+
+                const esNuevo = payload.id === 0;
+                const url = RUTA_BASE + (esNuevo ? "Clientes/Guardar" : "Clientes/Editar");
+                const method = esNuevo ? "POST" : "PUT";
+
+                try {
+                    const resp = await fetchWithCsrf(url, {
+                        method: method,
+                        headers: { "Content-Type": "application/json" },
+                        body: JSON.stringify(payload)
+                    });
+
+                    const json = await resp.json();
+                    if (json.estado) {
+                        Swal.fire("Listo", "Cambios guardados correctamente.", "success");
+                        $("#modalCliente").modal("hide");
+                        tabla.ajax.reload(null, false);
+                    } else {
+                        Swal.fire("Aviso", json.mensaje || "No se pudo guardar el cliente.", "info");
+                    }
+                } catch (e) {
+                    Swal.fire("Error", e.message, "error");
+                }
+            });
+
+            // Eliminar
+            $("#tbClientes").on("click", ".btn-eliminar", function () {
+                const data = tabla.row($(this).closest("tr")).data();
+                if (!data) return;
+
+                const runDelete = async () => {
+                    try {
+                        const resp = await fetchWithCsrf(
+                            RUTA_BASE + "Clientes/Eliminar?id=" + data.id,
+                            { method: "DELETE" }
+                        );
+                        const json = await resp.json();
+                        if (json.estado) {
+                            Swal.fire("Eliminado", "Cliente eliminado correctamente.", "success");
+                            tabla.ajax.reload(null, false);
+                        } else {
+                            Swal.fire("No eliminado", json.mensaje || "No se pudo eliminar el cliente.", "warning");
+                        }
+                    } catch (e) {
+                        Swal.fire("Error", e.message, "error");
+                    }
+                };
+
+                Swal.fire({
+                    title: "¿Eliminar cliente?",
+                    text: `Se eliminará el cliente: ${data.nombreCompleto}`,
+                    icon: "warning",
+                    showCancelButton: true,
+                    confirmButtonText: "Sí, eliminar",
+                    cancelButtonText: "Cancelar"
+                }).then(r => { if (r.isConfirmed) runDelete(); });
+            });
+
+        });
+    </script>
+}
