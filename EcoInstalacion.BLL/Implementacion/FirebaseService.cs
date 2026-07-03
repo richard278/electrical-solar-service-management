@@ -1,4 +1,4 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
@@ -58,7 +58,7 @@ namespace EcoInstalacion.BLL.Implementacion
 
                 urlImagen = await task;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 urlImagen = string.Empty;
             }
@@ -102,7 +102,7 @@ namespace EcoInstalacion.BLL.Implementacion
 
                 return true;
             }
-            catch (Exception ex)
+            catch (Exception)
             {
                 return false;
             }

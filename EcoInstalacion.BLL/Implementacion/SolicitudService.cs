@@ -1,4 +1,4 @@
-﻿using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
 using Microsoft.EntityFrameworkCore;
@@ -89,7 +89,7 @@ namespace EcoInstalacion.BLL.Implementacion
             if (existente == null)
                 return false;
 
-            if (existente.VisitasTecnicas.Any())
+            if (existente.VisitasTecnicas != null && existente.VisitasTecnicas.Any())
                 throw new TaskCanceledException("No se puede eliminar: existen visitas técnicas asociadas.");
 
             return await _repositorio.Eliminar(existente);

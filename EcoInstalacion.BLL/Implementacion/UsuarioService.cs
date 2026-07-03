@@ -1,4 +1,4 @@
-﻿
+
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
@@ -175,7 +175,7 @@ namespace EcoInstalacion.BLL.Implementacion
                 .Include(u => u.IdRolNavigation)
                 .FirstOrDefaultAsync();
 
-            if (usuario is null || !_utilidadesService.VerifyPassword(clave, usuario.Clave))
+            if (usuario is null || usuario.Clave == null || !_utilidadesService.VerifyPassword(clave, usuario.Clave))
                 throw new TaskCanceledException("Credenciales incorrectas.");
 
             // Si aún es SHA-256, hacemos "rehash" a PBKDF2
@@ -208,7 +208,7 @@ namespace EcoInstalacion.BLL.Implementacion
 
             var hashActual = _utilidadesService.ConvertirSHA256(claveActual);
 
-            if (!usuario.Clave.Equals(hashActual, StringComparison.OrdinalIgnoreCase))
+            if (!string.Equals(usuario.Clave, hashActual, StringComparison.OrdinalIgnoreCase))
                 throw new TaskCanceledException("La clave actual es incorrecta!");
 
             usuario.Clave = _utilidadesService.ConvertirSHA256(nuevaClave);

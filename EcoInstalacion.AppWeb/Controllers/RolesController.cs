@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using EcoInstalacion.AppWeb.Models.ViewModels;
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
@@ -22,7 +22,7 @@ namespace EcoInstalacion.AppWeb.Controllers
 
         // GET: /Roles
         [HttpGet]
-        public IActionResult Index() => View();
+        public override IActionResult Index() => View();
 
         // GET: /Roles/Lista
         [HttpGet]

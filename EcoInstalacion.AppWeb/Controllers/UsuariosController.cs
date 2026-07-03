@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using EcoInstalacion.AppWeb.Models.ViewModels;
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
@@ -29,7 +29,7 @@ namespace EcoInstalacion.AppWeb.Controllers
         }
 
         [HttpGet]
-        public IActionResult Index() => View();
+        public override IActionResult Index() => View();
 
         #region Listas
 

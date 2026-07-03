@@ -1,4 +1,4 @@
-﻿using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
 using Microsoft.EntityFrameworkCore;
@@ -24,7 +24,7 @@ namespace EcoInstalacion.BLL.Implementacion
             if (!string.IsNullOrWhiteSpace(filtro))
             {
                 var f = filtro.Trim().ToUpper();
-                q = q.Where(r => r.Descripcion.ToUpper().Contains(f));
+                q = q.Where(r => r.Descripcion != null && r.Descripcion.ToUpper().Contains(f));
             }
 
             if (soloActivos is not null)
@@ -46,9 +46,12 @@ namespace EcoInstalacion.BLL.Implementacion
             if (string.IsNullOrWhiteSpace(entidad.Descripcion))
                 throw new ArgumentException("La descripción es obligatoria.", nameof(entidad.Descripcion));
 
+            string descripcion = entidad.Descripcion.Trim().ToUpper();
+
             // Único por nombre (case-insensitive)
             var yaExiste = await _repoRol.ObtenerDatos(r =>
-                r.Descripcion.ToUpper() == entidad.Descripcion.Trim().ToUpper());
+                r.Descripcion != null &&
+                r.Descripcion.ToUpper() == descripcion);
 
             if (yaExiste is not null)
                 throw new InvalidOperationException("Ya existe un rol con esa descripción.");
@@ -62,15 +65,20 @@ namespace EcoInstalacion.BLL.Implementacion
 
         public async Task<Rol> Editar(Rol entidad)
         {
+            if (string.IsNullOrWhiteSpace(entidad.Descripcion))
+                throw new ArgumentException("La descripción es obligatoria.", nameof(entidad.Descripcion));
+
             var db = await _repoRol.ObtenerDatos(r => r.IdRol == entidad.IdRol)
                      ?? throw new KeyNotFoundException("Rol no encontrado.");
 
             // Si cambia la descripción, validar unicidad
             if (!string.Equals(db.Descripcion, entidad.Descripcion, StringComparison.OrdinalIgnoreCase))
             {
+                string descripcion = entidad.Descripcion.Trim().ToUpper();
                 var colision = await _repoRol.ObtenerDatos(r =>
                     r.IdRol != entidad.IdRol &&
-                    r.Descripcion.ToUpper() == entidad.Descripcion.Trim().ToUpper());
+                    r.Descripcion != null &&
+                    r.Descripcion.ToUpper() == descripcion);
 
                 if (colision is not null)
                     throw new InvalidOperationException("Ya existe otro rol con esa descripción.");

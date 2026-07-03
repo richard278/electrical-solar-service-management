@@ -1,4 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Configuration;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
@@ -18,6 +18,9 @@ namespace EcoInstalacion.BLL.Implementacion
 
         public async Task<bool> EnviarCorreo(string? correoDestino, string? asunto, string? mensaje)
         {
+            if (string.IsNullOrWhiteSpace(correoDestino))
+                return false;
+
             try
             {
                 List<Configuracion> query = await _repositorio.Consultar(
