@@ -43,6 +43,19 @@ The project is structured following a standard Layered Architecture pattern:
 - **[EcoInstalacion.Entity](file:///d:/UTEC/2025/ProyectoEcoInstalacion/EcoInstalacionWebApp/EcoInstalacion.Entity)**: Shared domain models, data transfer objects, and entities.
 - **[EcoInstalacion.IOC](file:///d:/UTEC/2025/ProyectoEcoInstalacion/EcoInstalacionWebApp/EcoInstalacion.IOC)**: Inversion of Control layer responsible for dependency injection registration.
 
+## Technical Documentation
+
+Additional technical documentation is available in the [`docs/`](docs/) folder.
+
+Recommended reading:
+
+- [Project Overview](docs/01-project-overview.md)
+- [Layered Architecture](docs/02-layered-architecture.md)
+- [Refactor History](docs/03-refactor-history.md)
+- [BLL / DAL Architecture Audit](docs/04-bll-dal-audit.md)
+- [Domain Rules](docs/05-domain-rules.md)
+- [Deployment Roadmap](docs/06-deployment-roadmap.md)
+
 ## Local Setup
 
 1. Copy the example configuration file:
