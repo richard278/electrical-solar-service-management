@@ -1,9 +1,23 @@
+# Build artifacts
 bin/
 obj/
+
+# Visual Studio & VS Code directories/files
 .vs/
+.vscode/
 *.user
 *.suo
+*.rsuser
+*.userosscache
+*.sln.docstates
 *.cache
-packages/
 *.log
+
+# Test results and package directories
+TestResults/
 node_modules/
+
+# Local configurations & secrets
+.env
+appsettings.Local.json
+appsettings.*.local.json
