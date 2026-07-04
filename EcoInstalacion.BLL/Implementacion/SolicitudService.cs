@@ -1,17 +1,20 @@
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
-using Microsoft.EntityFrameworkCore;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
     public class SolicitudService : ISolicitudService
     {
         private readonly IGenericRepository<SolicitudesInstalacion> _repositorio;
+        private readonly ISolicitudRepository _solicitudRepository;
 
-        public SolicitudService(IGenericRepository<SolicitudesInstalacion>repositorio)
+        public SolicitudService(
+            IGenericRepository<SolicitudesInstalacion> repositorio,
+            ISolicitudRepository solicitudRepository)
         {
             _repositorio = repositorio;
+            _solicitudRepository = solicitudRepository;
         }
 
         public async Task<SolicitudesInstalacion> Crear(SolicitudesInstalacion entidad)
@@ -40,14 +43,9 @@ namespace EcoInstalacion.BLL.Implementacion
             if (creada == null || creada.Id <= 0)
                 throw new TaskCanceledException("No se pudo crear la solicitud.");
 
-            // Trae relaciones inmediatamente después de guardar (Cliente y Técnico)
-            var completa = await _repositorio.Query(s => s.Id == creada.Id)
-                .Include(s => s.Cliente)
-                .Include(s => s.TecnicoAsignado)
-                .FirstOrDefaultAsync();
-
+            // Recarga con relaciones desde DAL
+            var completa = await _solicitudRepository.ObtenerConRelaciones(creada.Id);
             return completa ?? creada;
-
         }
 
         public async Task<SolicitudesInstalacion> Editar(SolicitudesInstalacion entidad)
@@ -70,25 +68,20 @@ namespace EcoInstalacion.BLL.Implementacion
             if (!ok)
                 throw new TaskCanceledException("No se pudo editar la solicitud.");
 
-            // Devuelve con las relaciones cargadas
-            var actualizada = await _repositorio.Query(s => s.Id == existente.Id)
-                .Include(s => s.Cliente)
-                .Include(s => s.TecnicoAsignado)
-                .Include(s => s.VisitasTecnicas)
-                .FirstOrDefaultAsync();
-
+            // Recarga con relaciones desde DAL
+            var actualizada = await _solicitudRepository.ObtenerConRelaciones(existente.Id);
             return actualizada ?? existente;
         }
 
         public async Task<bool> Eliminar(int id)
         {
-            var existente = await _repositorio.Query(s => s.Id == id)
-                .Include(s => s.VisitasTecnicas)
-                .FirstOrDefaultAsync();
+            // Carga solicitud con visitas desde DAL (con tracking para permitir Remove)
+            var existente = await _solicitudRepository.ObtenerConVisitas(id);
 
             if (existente == null)
                 return false;
 
+            // Regla de negocio: no eliminar si existen visitas técnicas asociadas
             if (existente.VisitasTecnicas != null && existente.VisitasTecnicas.Any())
                 throw new TaskCanceledException("No se puede eliminar: existen visitas técnicas asociadas.");
 
@@ -97,24 +90,12 @@ namespace EcoInstalacion.BLL.Implementacion
 
         public async Task<List<SolicitudesInstalacion>> Lista()
         {
-            var query = _repositorio.Query();
-            return await query
-                .Include(s => s.Cliente)
-                .Include(s => s.TecnicoAsignado)
-                .OrderByDescending(s => s.FechaSolicitud)
-                .ThenByDescending(s => s.Id)
-                .AsNoTracking()
-                .ToListAsync();
+            return await _solicitudRepository.ListaConRelaciones();
         }
 
         public async Task<SolicitudesInstalacion?> ObtenerPorId(int id)
         {
-            return await _repositorio.Query(s => s.Id == id)
-                .Include(s => s.Cliente)
-                .Include(s => s.TecnicoAsignado)
-                .Include(s => s.VisitasTecnicas)
-                .AsNoTracking()
-                .FirstOrDefaultAsync();
+            return await _solicitudRepository.ObtenerConRelaciones(id);
         }
     }
 }

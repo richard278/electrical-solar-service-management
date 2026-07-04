@@ -13,6 +13,7 @@ namespace EcoInstalacion.IOC
         public static void InyectarDependencia(this IServiceCollection services, IConfiguration configuration)
         {
             services.AddTransient(typeof(IGenericRepository<>), typeof(GenericRepository<>));
+            services.AddScoped<ISolicitudRepository, SolicitudRepository>();
             services.AddScoped<ICorreoService, CorreoService>();
             services.AddScoped<IFirebaseService, FirebaseService>();
             services.AddScoped<IUtilidadesService, UtilidadesService>();
