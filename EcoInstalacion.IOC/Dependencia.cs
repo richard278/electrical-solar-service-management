@@ -1,5 +1,3 @@
-﻿using Microsoft.EntityFrameworkCore;
-using EcoInstalacion.Entity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -14,11 +12,6 @@ namespace EcoInstalacion.IOC
     {
         public static void InyectarDependencia(this IServiceCollection services, IConfiguration configuration)
         {
-            services.AddDbContext<EcoInstaladorContext>(options =>
-            {
-                options.UseSqlServer(configuration.GetConnectionString("CadenaSql"));
-            });
-
             services.AddTransient(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<ICorreoService, CorreoService>();
             services.AddScoped<IFirebaseService, FirebaseService>();
