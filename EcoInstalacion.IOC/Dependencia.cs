@@ -15,6 +15,7 @@ namespace EcoInstalacion.IOC
             services.AddTransient(typeof(IGenericRepository<>), typeof(GenericRepository<>));
             services.AddScoped<ISolicitudRepository, SolicitudRepository>();
             services.AddScoped<IClienteRepository, ClienteRepository>();
+            services.AddScoped<IRolRepository, RolRepository>();
             services.AddScoped<ICorreoService, CorreoService>();
             services.AddScoped<IFirebaseService, FirebaseService>();
             services.AddScoped<IUtilidadesService, UtilidadesService>();

@@ -1,7 +1,6 @@
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
-using Microsoft.EntityFrameworkCore;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
@@ -9,31 +8,20 @@ namespace EcoInstalacion.BLL.Implementacion
     {
         private readonly IGenericRepository<Rol> _repoRol;
         private readonly IGenericRepository<Usuario> _repoUsuario;
+        private readonly IRolRepository _rolRepository;
 
         public RolService(IGenericRepository<Rol> repoRol,
-                          IGenericRepository<Usuario> repoUsuario)
+                          IGenericRepository<Usuario> repoUsuario,
+                          IRolRepository rolRepository)
         {
             _repoRol = repoRol;
             _repoUsuario = repoUsuario;
+            _rolRepository = rolRepository;
         }
 
         public async Task<List<Rol>> Lista(string? filtro = null, bool? soloActivos = null)
         {
-            var q = _repoRol.Query();
-
-            if (!string.IsNullOrWhiteSpace(filtro))
-            {
-                var f = filtro.Trim().ToUpper();
-                q = q.Where(r => r.Descripcion != null && r.Descripcion.ToUpper().Contains(f));
-            }
-
-            if (soloActivos is not null)
-                q = q.Where(r => r.EsActivo == soloActivos);
-
-            return await q
-                .OrderBy(r => r.Descripcion)
-                .AsNoTracking()
-                .ToListAsync();
+            return await _rolRepository.ListaSinTracking(filtro, soloActivos);
         }
 
         public async Task<Rol?> ObtenerPorId(int idRol)
