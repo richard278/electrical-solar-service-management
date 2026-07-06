@@ -1,21 +1,20 @@
-﻿using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
-using Microsoft.EntityFrameworkCore;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
     public class TecnicoService : ITecnicoService
     {
         private readonly IGenericRepository<Tecnico> _repoTecnico;
-        private readonly IGenericRepository<SolicitudesInstalacion> _repoSolicitud;
+        private readonly ITecnicoRepository _tecnicoRepository;
 
         public TecnicoService(
             IGenericRepository<Tecnico> repoTecnico,
-            IGenericRepository<SolicitudesInstalacion> repoSolicitud)
+            ITecnicoRepository tecnicoRepository)
         {
             _repoTecnico = repoTecnico;
-            _repoSolicitud = repoSolicitud;
+            _tecnicoRepository = tecnicoRepository;
         }
 
         public async Task<Tecnico> Crear(Tecnico entidad)
@@ -58,7 +57,7 @@ namespace EcoInstalacion.BLL.Implementacion
         public async Task<bool> Eliminar(int id)
         {
             // Bloquear si está asignado en alguna solicitud
-            var asignado = await _repoSolicitud.Query(s => s.TecnicoAsignadoId == id).AnyAsync();
+            var asignado = await _tecnicoRepository.EstaAsignadoASolicitudes(id);
             if (asignado)
                 throw new TaskCanceledException("No se puede eliminar: el técnico está asignado a solicitudes.");
 
@@ -70,13 +69,12 @@ namespace EcoInstalacion.BLL.Implementacion
 
         public async Task<List<Tecnico>> Lista()
         {
-            var q = _repoTecnico.Query();
-            return await q.OrderBy(t => t.Nombre).AsNoTracking().ToListAsync();
+            return await _tecnicoRepository.ListaSinTracking();
         }
 
         public async Task<Tecnico?> ObtenerPorId(int id)
         {
-            return await _repoTecnico.Query(t => t.Id == id).AsNoTracking().FirstOrDefaultAsync();
+            return await _tecnicoRepository.ObtenerPorIdSinTracking(id);
         }
     }
 }
