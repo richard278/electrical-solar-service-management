@@ -1,40 +1,25 @@
-﻿using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
-using Microsoft.EntityFrameworkCore;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
     public class ReporteService : IReporteService
     {
-        private readonly IGenericRepository<SolicitudesInstalacion> _repoSolicitud;
-        private readonly IGenericRepository<VisitasTecnica> _repoVisita;
-        private readonly IGenericRepository<Tecnico> _repoTecnico;
-        public ReporteService(
-            IGenericRepository<SolicitudesInstalacion> repoSolicitud,
-            IGenericRepository<VisitasTecnica> repoVisita,
-            IGenericRepository<Tecnico> repoTecnico)
+        private readonly IReporteRepository _reporteRepository;
+
+        public ReporteService(IReporteRepository reporteRepository)
         {
-            _repoSolicitud = repoSolicitud;
-            _repoVisita = repoVisita;
-            _repoTecnico = repoTecnico;
+            _reporteRepository = reporteRepository;
         }
 
         public async Task<List<ReporteTecnicosAsignados>> ReporteTecnicosAsignados(DateTime? fechaInicio, DateTime? fechaFin)
         {
-            var solicitudes = await _repoSolicitud.ConsultarIncluyendo(
-                include: q => q
-                    .Include(s => s.TecnicoAsignado)
-                    .Include(s => s.VisitasTecnicas),
-                filtro: s =>
-                    (!fechaInicio.HasValue || s.FechaSolicitud >= fechaInicio.Value.Date) &&
-                    (!fechaFin.HasValue || s.FechaSolicitud <= fechaFin.Value.Date.AddDays(1).AddTicks(-1))
-            );
+            var solicitudes = await _reporteRepository.SolicitudesConTecnicoYVisitas(fechaInicio, fechaFin);
 
-            // 2) Transformar cada solicitud + cada visita en fila de reporte
             var lista = solicitudes
                 .SelectMany(
-                    s => s.VisitasTecnicas!.DefaultIfEmpty(),   // el ! dice al compilador “confía, no es null en tiempo de ejecución”
+                    s => s.VisitasTecnicas!.DefaultIfEmpty(),
                     (s, v) => new ReporteTecnicosAsignados
                     {
                         Tecnico = s.TecnicoAsignado?.Nombre ?? "(Sin técnico)",

@@ -18,6 +18,7 @@ namespace EcoInstalacion.IOC
             services.AddScoped<IRolRepository, RolRepository>();
             services.AddScoped<ITecnicoRepository, TecnicoRepository>();
             services.AddScoped<IVisitaTecnicaRepository, VisitaTecnicaRepository>();
+            services.AddScoped<IReporteRepository, ReporteRepository>();
             services.AddScoped<ICorreoService, CorreoService>();
             services.AddScoped<IFirebaseService, FirebaseService>();
             services.AddScoped<IUtilidadesService, UtilidadesService>();
