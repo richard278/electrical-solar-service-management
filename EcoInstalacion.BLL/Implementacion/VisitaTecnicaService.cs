@@ -1,7 +1,6 @@
-﻿using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
-using Microsoft.EntityFrameworkCore;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
@@ -9,13 +8,16 @@ namespace EcoInstalacion.BLL.Implementacion
     {
         private readonly IGenericRepository<VisitasTecnica> _repoVisita;
         private readonly IGenericRepository<SolicitudesInstalacion> _repoSolicitud;
+        private readonly IVisitaTecnicaRepository _visitaTecnicaRepository;
 
         public VisitaTecnicaService(
             IGenericRepository<VisitasTecnica> repoVisita,
-            IGenericRepository<SolicitudesInstalacion> repoSolicitud)
+            IGenericRepository<SolicitudesInstalacion> repoSolicitud,
+            IVisitaTecnicaRepository visitaTecnicaRepository)
         {
             _repoVisita = repoVisita;
             _repoSolicitud = repoSolicitud;
+            _visitaTecnicaRepository = visitaTecnicaRepository;
         }
 
         public async Task<VisitasTecnica> Crear(VisitasTecnica entidad)
@@ -69,34 +71,17 @@ namespace EcoInstalacion.BLL.Implementacion
 
         public async Task<List<VisitasTecnica>> Lista()
         {
-            var data = await _repoVisita.ConsultarIncluyendo(
-                            q => q.Include(v => v.Solicitud)
-                                  .ThenInclude(s => s.Cliente)
-                        );
-
-            return data.OrderByDescending(v => v.FechaVisita).ToList(); // <-- unificado
+            return await _visitaTecnicaRepository.ListaConSolicitudCliente();
         }
 
         public async Task<List<VisitasTecnica>> ListaPorSolicitud(int solicitudId)
         {
-            var data = await _repoVisita.ConsultarIncluyendo(
-                            q => q.Include(v => v.Solicitud)
-                                  .ThenInclude(s => s.Cliente),
-                            v => v.SolicitudId == solicitudId
-                        );
-
-            return data.OrderByDescending(v => v.FechaVisita).ToList(); // <-- unificado
+            return await _visitaTecnicaRepository.ListaPorSolicitudConSolicitudCliente(solicitudId);
         }
 
         public async Task<VisitasTecnica?> ObtenerPorId(int id)
         {
-            var data = await _repoVisita.ConsultarIncluyendo(
-                q => q.Include(v => v.Solicitud)
-                      .ThenInclude(s => s.Cliente),
-                v => v.Id == id
-            );
-
-            return data.FirstOrDefault();
+            return await _visitaTecnicaRepository.ObtenerPorIdConSolicitudCliente(id);
         }
     }
 }
