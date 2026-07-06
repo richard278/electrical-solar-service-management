@@ -1,21 +1,20 @@
-﻿using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
-using Microsoft.EntityFrameworkCore;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
     public class ClienteService : IClienteService
     {
         private readonly IGenericRepository<Cliente> _repoCliente;
-        private readonly IGenericRepository<SolicitudesInstalacion> _repoSolicitud;
+        private readonly IClienteRepository _repoClienteSpecific;
 
         public ClienteService(
             IGenericRepository<Cliente> repoCliente,
-            IGenericRepository<SolicitudesInstalacion> repoSolicitud)
+            IClienteRepository repoClienteSpecific)
         {
             _repoCliente = repoCliente;
-            _repoSolicitud = repoSolicitud;
+            _repoClienteSpecific = repoClienteSpecific;
         }
 
         public async Task<Cliente> Crear(Cliente entidad)
@@ -71,7 +70,7 @@ namespace EcoInstalacion.BLL.Implementacion
         public async Task<bool> Eliminar(int id)
         {
             // Bloquear si tiene solicitudes
-            var tieneSolicitudes = await _repoSolicitud.Query(s => s.ClienteId == id).AnyAsync();
+            var tieneSolicitudes = await _repoClienteSpecific.TieneSolicitudes(id);
             if (tieneSolicitudes)
                 throw new TaskCanceledException("No se puede eliminar: el cliente tiene solicitudes registradas.");
 
@@ -85,20 +84,13 @@ namespace EcoInstalacion.BLL.Implementacion
         //revisar este servicio
         public async Task<List<Cliente>> Lista()
         {
-            var query = _repoCliente.Query();
-            return await query
-                .OrderBy(c => c.NombreCompleto)
-                .AsNoTracking()
-                .Where(c => c.EsActivo)
-                .ToListAsync();
+            return await _repoClienteSpecific.ListaActivosSinTracking();
         }
 
 
         public async Task<Cliente?> ObtenerPorId(int id)
         {
-            return await _repoCliente.Query(c => c.Id == id)
-                .AsNoTracking()
-                .FirstOrDefaultAsync();
+            return await _repoClienteSpecific.ObtenerPorIdSinTracking(id);
         }
     }
 }
