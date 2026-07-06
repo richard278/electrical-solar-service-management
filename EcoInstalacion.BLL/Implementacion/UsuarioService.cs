@@ -2,13 +2,13 @@
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
-using Microsoft.EntityFrameworkCore;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
     public class UsuarioService : IUsuarioService
     {
         private readonly IGenericRepository<Usuario> _repositorio;
+        private readonly IUsuarioRepository _usuarioRepository;
         private readonly ICorreoService _correoService;
         private readonly IUtilidadesService _utilidadesService;
         private readonly ILocalImageStorage _imageStore;
@@ -18,9 +18,11 @@ namespace EcoInstalacion.BLL.Implementacion
             IFirebaseService _,// Retenido para compatibilidad futura
             ICorreoService correoService,
             IUtilidadesService utilidadesService,
-            ILocalImageStorage imageStore)
+            ILocalImageStorage imageStore,
+            IUsuarioRepository usuarioRepository)
         {
             _repositorio = repositorio;
+            _usuarioRepository = usuarioRepository;
             _correoService = correoService;
             _utilidadesService = utilidadesService;
             _imageStore = imageStore;
@@ -28,12 +30,7 @@ namespace EcoInstalacion.BLL.Implementacion
 
         public async Task<List<Usuario>> Lista()
         {
-            // Usa Query() para poder hacer Include
-            return await _repositorio
-                .Query()
-                .Include(u => u.IdRolNavigation)
-                .AsNoTracking()
-                .ToListAsync();
+            return await _usuarioRepository.ListaConRolSinTracking();
         }
 
         public async Task<Usuario> Crear(
@@ -86,11 +83,8 @@ namespace EcoInstalacion.BLL.Implementacion
             }
 
             // 6) Devolver con su rol
-            return await _repositorio
-                .Query(u => u.IdUsuario == creado.IdUsuario)
-                .Include(u => u.IdRolNavigation)
-                .AsNoTracking()
-                .FirstAsync();
+            return await _usuarioRepository.ObtenerPorIdConRolSinTracking(creado.IdUsuario)
+                ?? throw new TaskCanceledException("No se pudo obtener el usuario creado.");
         }
 
         public async Task<Usuario> Editar(
@@ -105,9 +99,7 @@ namespace EcoInstalacion.BLL.Implementacion
                 throw new TaskCanceledException("El correo ya existe");
 
             // 2) Obtener usuario
-            var usuario = await _repositorio
-                .Query(u => u.IdUsuario == entidad.IdUsuario)
-                .FirstOrDefaultAsync()
+            var usuario = await _usuarioRepository.ObtenerPorIdConRolTracking(entidad.IdUsuario)
                 ?? throw new TaskCanceledException("El usuario no existe");
 
             // 3) Actualizar datos base
@@ -142,11 +134,8 @@ namespace EcoInstalacion.BLL.Implementacion
             if (!await _repositorio.Editar(usuario))
                 throw new TaskCanceledException("No se pudo editar el usuario");
 
-            return await _repositorio
-                .Query(u => u.IdUsuario == usuario.IdUsuario)
-                .Include(u => u.IdRolNavigation)
-                .AsNoTracking()
-                .FirstAsync();
+            return await _usuarioRepository.ObtenerPorIdConRolSinTracking(usuario.IdUsuario)
+                ?? throw new TaskCanceledException("No se pudo obtener el usuario actualizado.");
         }
 
         public async Task<bool> Eliminar(int idUsuario)
@@ -170,10 +159,7 @@ namespace EcoInstalacion.BLL.Implementacion
 
         public async Task<Usuario> ObtenerPorCredenciales(string correo, string clave)
         {
-            var usuario = await _repositorio
-                .Query(u => u.Correo == correo)
-                .Include(u => u.IdRolNavigation)
-                .FirstOrDefaultAsync();
+            var usuario = await _usuarioRepository.ObtenerPorCorreoConRolTracking(correo);
 
             if (usuario is null || usuario.Clave == null || !_utilidadesService.VerifyPassword(clave, usuario.Clave))
                 throw new TaskCanceledException("Credenciales incorrectas.");
@@ -190,13 +176,9 @@ namespace EcoInstalacion.BLL.Implementacion
 
         public async Task<Usuario> ObtenerPorId(int idUsuario)
         {
-            var usuario = await _repositorio
-                .Query(u => u.IdUsuario == idUsuario)
-                .Include(r => r.IdRolNavigation)
-                .AsNoTracking()
-                .FirstOrDefaultAsync();
+            var usuario = await _usuarioRepository.ObtenerPorIdConRolSinTracking(idUsuario);
 
-            if (usuario is null)throw new TaskCanceledException("Usuario no existe!");
+            if (usuario is null) throw new TaskCanceledException("Usuario no existe!");
 
             return usuario;
         }
