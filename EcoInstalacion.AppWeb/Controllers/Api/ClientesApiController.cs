@@ -7,6 +7,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
 {
     [ApiController]
     [Route("api/clientes")]
+    [IgnoreAntiforgeryToken]
     [Produces("application/json")]
     public class ClientesApiController : ControllerBase
     {
