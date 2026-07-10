@@ -105,6 +105,7 @@ El sistema de APIs REST implementa el siguiente estándar de respuestas:
 > - **Exposición de APIs**: Las APIs REST actuales se exponen de manera pública e independiente de las cookies del navegador (a través de `[IgnoreAntiforgeryToken]`) para servir de base inicial de integración.
 > - **Estrategia para React + Vite**: En fases posteriores, se diseñará la estrategia de autenticación específica de la API (por ejemplo, JWT, cookies seguras HTTP-Only, o tokens de portador) que proteja estos endpoints de manera unificada para el frontend SPA.
 > - **Usuarios y Roles**: La información sensible de credenciales (`Usuario`) no se expone a nivel de API pública en este sprint para prevenir vulnerabilidades de filtración.
+> - **Diseño de Autenticación Futura**: Los endpoints del contrato están actualmente en modo de integración libre local; la arquitectura y el diseño técnico para protegerlos mediante un flujo seguro de tokens está definido formalmente en el documento [10. Auth API Design](10-auth-api-design.md).
 
 ---
 

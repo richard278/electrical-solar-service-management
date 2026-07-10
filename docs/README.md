@@ -14,6 +14,8 @@ This folder contains the technical documentation for the **Electrical Solar Serv
 - [08. API Contract](08-api-contract.md): REST API endpoints contract definition, DTO structures, and conventions for frontend integration.
 - [09. Target Architecture](architecture/target-architecture.md): Architectural roadmap and progressive modernization strategy toward React + Vite.
 - [10. Mobile Readiness](09-mobile-readiness.md): Preparation for React Native / Expo mobile client for field technicians.
+- [11. Auth API Design](10-auth-api-design.md): Planning and design of the security, authentication, and authorization layer for API endpoints.
+- [12. Technical Debt Register](11-technical-debt-register.md): Systematic register cataloging technical debt items, risks, priorities, and roadmap for reduction.
 
 ---
 

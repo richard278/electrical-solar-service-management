@@ -126,3 +126,4 @@ El siguiente mapa de ruta detalla el avance progresivo planificado para la integ
 * **Sprint 5E: Autenticación en el Frontend**
   * Migración del inicio de sesión Razor a un flujo de API REST.
   * Gestión de tokens/sesión y protección de rutas en React.
+  * *Nota de transición de seguridad*: La ruta de modernización del esquema de sesión se define como `MVC/Razor Auth actual -> API Auth futura -> React protected routes` conforme a las bases especificadas en [10. Auth API Design](file:///d:/UTEC/2025/ProyectoEcoInstalacion/EcoInstalacionWebApp/docs/10-auth-api-design.md).
