@@ -13,6 +13,7 @@ This folder contains the technical documentation for the **Electrical Solar Serv
 - [07. Database Model](07-database-model.md): Description of the SQL Server database schema, tables, relationships, and data types.
 - [08. API Contract](08-api-contract.md): REST API endpoints contract definition, DTO structures, and conventions for frontend integration.
 - [09. Target Architecture](architecture/target-architecture.md): Architectural roadmap and progressive modernization strategy toward React + Vite.
+- [10. Mobile Readiness](09-mobile-readiness.md): Preparation for React Native / Expo mobile client for field technicians.
 
 ---
 

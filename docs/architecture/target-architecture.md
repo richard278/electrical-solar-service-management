@@ -54,6 +54,20 @@ La arquitectura de destino migrará la responsabilidad de la presentación a un 
 +-------------------------------------------------------------+
 ```
 
+### Arquitectura Multi-Cliente
+
+El backend API-first del sistema está preparado para responder de manera concurrente a múltiples interfaces de usuario, permitiendo un flujo de datos desacoplado tanto para la web de administración como para la aplicación móvil de campo:
+
+```
+React + Vite Web Client
+        |
+        v
+ASP.NET Core REST API -> BLL -> DAL -> SQL Server
+        ^
+        |
+React Native / Expo Mobile Client
+```
+
 ### Componentes de la Arquitectura de Destino
 
 * **Frontend SPA (React + Vite)**: Aplicación SPA moderna escrita en TypeScript, que consume la API REST del backend de forma asíncrona.

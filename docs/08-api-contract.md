@@ -92,9 +92,9 @@ El sistema de APIs REST implementa el siguiente estándar de respuestas:
 
 * **`200 OK`**: La solicitud se completó correctamente y devuelve los datos correspondientes en el cuerpo de la respuesta.
 * **`201 Created`**: La solicitud de creación (`POST`) finalizó con éxito. Devuelve la cabecera `Location` apuntando al recurso y el cuerpo con el DTO detallado del objeto creado.
-* **`204 NoContent`**: La solicitud de eliminación (`DELETE`) finalizó correctamente, y no se devuelve contenido en el cuerpo.
-* **`400 BadRequest`**: Errores de validación de modelo (`ModelState`), argumentos inválidos u operaciones canceladas por reglas de negocio en la capa `BLL`. Devuelve un objeto JSON detallando el error.
-* **`404 NotFound`**: El recurso especificado mediante ID no existe en el sistema.
+* **`204 No Content`**: La solicitud de eliminación (`DELETE`) finalizó correctamente, y no se devuelve contenido en el cuerpo.
+* **`400 Bad Request`**: Errores de validación de modelo (`ModelState`), argumentos inválidos u operaciones canceladas por reglas de negocio en la capa `BLL`. Devuelve un objeto JSON detallando el error.
+* **`404 Not Found`**: El recurso especificado mediante ID no existe en el sistema.
 
 ---
 
@@ -105,3 +105,9 @@ El sistema de APIs REST implementa el siguiente estándar de respuestas:
 > - **Exposición de APIs**: Las APIs REST actuales se exponen de manera pública e independiente de las cookies del navegador (a través de `[IgnoreAntiforgeryToken]`) para servir de base inicial de integración.
 > - **Estrategia para React + Vite**: En fases posteriores, se diseñará la estrategia de autenticación específica de la API (por ejemplo, JWT, cookies seguras HTTP-Only, o tokens de portador) que proteja estos endpoints de manera unificada para el frontend SPA.
 > - **Usuarios y Roles**: La información sensible de credenciales (`Usuario`) no se expone a nivel de API pública en este sprint para prevenir vulnerabilidades de filtración.
+
+---
+
+## 7. Compatibilidad con clientes web y móviles
+
+Los contratos REST definidos en esta API están diseñados bajo especificaciones estándar independientes de la plataforma. De esta manera, cualquier cliente que respete la serialización JSON, el uso de DTOs para estructurar payloads, el manejo semántico de códigos de estado HTTP y los futuros esquemas de autenticación centralizada (JWT/Tokens) podrá consumir estos servicios sin cambios en el backend. Esto garantiza la total compatibilidad tanto con el cliente de administración web (React + Vite) como con la aplicación móvil de campo (React Native / Expo).
