@@ -1,4 +1,4 @@
-﻿using EcoInstalacion.DAL.EcoInstaladorContext;
+using EcoInstalacion.DAL.EcoInstaladorContext;
 using EcoInstalacion.IOC;
 using Microsoft.EntityFrameworkCore;
 using EcoInstalacion.BLL.Interfaces;
@@ -10,6 +10,8 @@ using QuestPDF.Infrastructure;
 using System.Security.Claims;
 
 var builder = WebApplication.CreateBuilder(args);
+
+const string FrontendDevelopmentCorsPolicy = "FrontendDevelopment";
 
 // === Servicios de aplicación ===
 
@@ -63,6 +65,19 @@ builder.Services.AddControllersWithViews(options =>
     options.Filters.Add(new AutoValidateAntiforgeryTokenAttribute());
 });
 
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy(FrontendDevelopmentCorsPolicy, policy =>
+    {
+        policy.WithOrigins(
+                "http://localhost:5173",
+                "https://localhost:5173"
+            )
+            .AllowAnyHeader()
+            .AllowAnyMethod();
+    });
+});
+
 var app = builder.Build();
 
 // === Middleware pipeline ===
@@ -77,6 +92,8 @@ if (!app.Environment.IsDevelopment())
 app.UseStaticFiles();
 
 app.UseRouting();
+
+app.UseCors(FrontendDevelopmentCorsPolicy);
 
 app.UseAuthentication();
 app.UseAuthorization();
