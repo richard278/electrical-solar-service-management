@@ -1,0 +1,38 @@
+:root {
+  --primary: #0b2545;
+  --accent: #0fa47a;
+  --bg-dark: #0f172a;
+  --bg-light: #f8fafc;
+  --text-dark: #f8fafc;
+  --text-light: #0f172a;
+  --border-dark: #334155;
+  --border-light: #e2e8f0;
+  
+  --font-family: 'Inter', system-ui, -apple-system, sans-serif;
+}
+
+body {
+  margin: 0;
+  font-family: var(--font-family);
+  background-color: var(--bg-light);
+  color: var(--text-light);
+  transition: background-color 0.3s, color 0.3s;
+  min-height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+@media (prefers-color-scheme: dark) {
+  body {
+    background-color: var(--bg-dark);
+    color: var(--text-dark);
+  }
+}
+
+#root {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
