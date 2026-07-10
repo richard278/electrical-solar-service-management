@@ -10,6 +10,9 @@ This folder contains the technical documentation for the **Electrical Solar Serv
 - [04. BLL/DAL Architecture Audit](04-bll-dal-audit.md): Deep-dive audit highlighting legacy architecture issues, DbContext duplication, and generic repository leakage.
 - [05. Domain Rules](05-domain-rules.md): Separation of concerns and domain business logic constraints enforced by the BLL layer.
 - [06. Deployment Roadmap](06-deployment-roadmap.md): Planned infrastructure, database migrations, configuration handling, and steps for production readiness.
+- [07. Database Model](07-database-model.md): Description of the SQL Server database schema, tables, relationships, and data types.
+- [08. API Contract](08-api-contract.md): REST API endpoints contract definition, DTO structures, and conventions for frontend integration.
+- [09. Target Architecture](architecture/target-architecture.md): Architectural roadmap and progressive modernization strategy toward React + Vite.
 
 ---
 
