@@ -43,3 +43,16 @@ Cliente web administrativo para la gestión de servicios técnicos e instalacion
 - Requiere el frontend ejecutándose en `http://localhost:5173`.
 - No incluye autenticación todavía.
 - No incluye operaciones de escritura (POST, PUT, DELETE) todavía.
+
+---
+
+## Sprint 5D — Operational Dashboard
+
+- Se consume `GET /api/solicitudes` de forma asíncrona.
+- Se consume `GET /api/visitas-tecnicas` de forma asíncrona.
+- Se consume `GET /api/visitas-tecnicas?solicitudId={id}` de forma asíncrona.
+- Se utiliza `fetch` nativo para todas las operaciones (sin Axios ni librerías adicionales).
+- Requiere el backend ejecutándose en `http://localhost:5240` (con CORS habilitado).
+- Requiere el frontend ejecutándose en `http://localhost:5173`.
+- No incluye autenticación todavía.
+- No incluye operaciones de escritura (POST, PUT, DELETE) ni formularios todavía.

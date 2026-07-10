@@ -8,15 +8,15 @@
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.8);
+  background: rgba(255, 255, 255, 0.75);
   backdrop-filter: blur(20px);
   -webkit-backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 28px;
   padding: 40px;
-  max-width: 900px;
+  max-width: 960px;
   width: 100%;
-  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 25px 50px rgba(0, 0, 0, 0.03);
   transition: transform 0.3s ease, box-shadow 0.3s ease;
   text-align: left;
 }
@@ -31,7 +31,7 @@
 
 .card:hover {
   transform: translateY(-2px);
-  box-shadow: 0 35px 65px rgba(0, 0, 0, 0.06);
+  box-shadow: 0 35px 65px rgba(0, 0, 0, 0.05);
 }
 
 @media (prefers-color-scheme: dark) {
@@ -88,7 +88,7 @@
 .preview-container {
   border-top: 1px solid rgba(0, 0, 0, 0.06);
   padding-top: 32px;
-  margin-top: 8px;
+  margin-top: 24px;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -189,6 +189,10 @@
   }
 }
 
+.preview-mode-tag.text-teal {
+  border-left-color: #0fa47a;
+}
+
 /* Loading state */
 .loading-placeholder {
   display: flex;
@@ -242,23 +246,88 @@
   margin: 0 0 12px 0;
 }
 
-.error-help {
-  font-size: 13px;
-  color: #64748b;
-  margin: 0;
+/* Metrics Dashboard Grid */
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 768px) {
+  .metrics-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 480px) {
+  .metrics-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.metric-card {
+  background: rgba(0, 0, 0, 0.01);
+  border: 1px solid rgba(0, 0, 0, 0.04);
+  padding: 20px;
+  border-radius: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  transition: transform 0.2s;
 }
 
 @media (prefers-color-scheme: dark) {
-  .error-help {
+  .metric-card {
+    background: rgba(255, 255, 255, 0.01);
+    border: 1px solid rgba(255, 255, 255, 0.04);
+  }
+}
+
+.metric-card:hover {
+  transform: translateY(-2px);
+}
+
+.metric-card.border-green {
+  border-left: 4px solid #16a34a;
+}
+
+.metric-card.border-amber {
+  border-left: 4px solid #d97706;
+}
+
+.metric-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  color: #64748b;
+  font-weight: 600;
+  letter-spacing: 0.5px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .metric-label {
     color: #94a3b8;
   }
 }
 
-.error-help code {
-  font-family: ui-monospace, Consolas, monospace;
-  background: rgba(0, 0, 0, 0.04);
-  padding: 2px 4px;
-  border-radius: 4px;
+.metric-value {
+  font-size: 28px;
+  font-weight: 800;
+  color: #0b2545;
+}
+
+@media (prefers-color-scheme: dark) {
+  .metric-value {
+    color: #f8fafc;
+  }
+}
+
+.text-green {
+  color: #16a34a !important;
+}
+
+.text-amber {
+  color: #d97706 !important;
 }
 
 /* Content data grid */
@@ -295,7 +364,7 @@
 }
 
 .section-header h3 {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 700;
   margin: 0;
 }
@@ -354,17 +423,47 @@
   }
 }
 
+.list-card-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
 .card-name {
   font-size: 15px;
   font-weight: 700;
   color: #0b2545;
-  margin: 0 0 6px 0;
+  margin: 0;
 }
 
 @media (prefers-color-scheme: dark) {
   .card-name {
     color: #f8fafc;
   }
+}
+
+.status-pill {
+  font-size: 11px;
+  font-weight: 600;
+  padding: 2px 8px;
+  border-radius: 4px;
+  text-transform: uppercase;
+}
+
+.badge-secondary {
+  background-color: rgba(100, 116, 139, 0.1);
+  color: #64748b;
+}
+
+.badge-warning {
+  background-color: rgba(217, 119, 6, 0.1);
+  color: #d97706;
+}
+
+.badge-success {
+  background-color: rgba(22, 163, 74, 0.1);
+  color: #16a34a;
 }
 
 .card-detail {
@@ -379,8 +478,25 @@
   }
 }
 
-.card-detail:last-child {
+.card-detail:last-of-type {
   margin-bottom: 0;
+}
+
+.card-desc {
+  font-size: 12.5px;
+  color: #64748b;
+  font-style: italic;
+  background: rgba(0, 0, 0, 0.02);
+  padding: 8px 12px;
+  border-radius: 6px;
+  margin: 8px 0 0 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .card-desc {
+    color: #94a3b8;
+    background: rgba(255, 255, 255, 0.02);
+  }
 }
 
 .font-medium {
