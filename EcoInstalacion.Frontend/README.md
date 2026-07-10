@@ -34,7 +34,12 @@ Cliente web administrativo para la gestión de servicios técnicos e instalacion
 
 ---
 
-## Nota del Sprint
+## Sprint 5C — API Client
 
-> [!NOTE]
-> La integración con los endpoints REST del backend está programada y pendiente para el **Sprint 5C**. La configuración de la URL base del backend se gestiona mediante la variable de entorno `VITE_API_BASE_URL` en el archivo `.env`.
+- Se consume `GET /api/clientes` de forma asíncrona.
+- Se consume `GET /api/tecnicos` de forma asíncrona.
+- Se utiliza `fetch` nativo para todas las operaciones (sin Axios ni librerías adicionales).
+- Requiere el backend ejecutándose en `http://localhost:5240` (con CORS habilitado).
+- Requiere el frontend ejecutándose en `http://localhost:5173`.
+- No incluye autenticación todavía.
+- No incluye operaciones de escritura (POST, PUT, DELETE) todavía.
