@@ -47,7 +47,7 @@ namespace EcoInstalacion.BLL.Implementacion
 
             // 2) Generar y aplicar clave
             var clavePlano = _utilidadesService.GenerarClave();
-            entidad.Clave = _utilidadesService.ConvertirSHA256(clavePlano);
+            entidad.Clave = _utilidadesService.HashPassword(clavePlano);
 
             // 3) Crear usuario (sin imagen)
             var creado = await _repositorio.Crear(entidad);
@@ -188,12 +188,10 @@ namespace EcoInstalacion.BLL.Implementacion
             var usuario = await _repositorio.ObtenerDatos(u => u.IdUsuario == idUsuario)
                     ?? throw new TaskCanceledException("El usuario no existe!");
 
-            var hashActual = _utilidadesService.ConvertirSHA256(claveActual);
-
-            if (!string.Equals(usuario.Clave, hashActual, StringComparison.OrdinalIgnoreCase))
+            if (usuario.Clave == null || !_utilidadesService.VerifyPassword(claveActual, usuario.Clave))
                 throw new TaskCanceledException("La clave actual es incorrecta!");
 
-            usuario.Clave = _utilidadesService.ConvertirSHA256(nuevaClave);
+            usuario.Clave = _utilidadesService.HashPassword(nuevaClave);
 
             if (!await _repositorio.Editar(usuario))
                 throw new TaskCanceledException("No se pudo cambiar la clave!");
@@ -207,7 +205,7 @@ namespace EcoInstalacion.BLL.Implementacion
                 ?? throw new TaskCanceledException("El usuario no existe.");
 
             var clavePlano = _utilidadesService.GenerarClave();
-            usuario.Clave = _utilidadesService.ConvertirSHA256(clavePlano);
+            usuario.Clave = _utilidadesService.HashPassword(clavePlano);
 
             using var http = new HttpClient();
             var html = await http.GetStringAsync(urlPlantillaCorreo.Replace("[Clave]", clavePlano));
