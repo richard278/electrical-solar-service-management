@@ -56,3 +56,20 @@ Cliente web administrativo para la gestión de servicios técnicos e instalacion
 - Requiere el frontend ejecutándose en `http://localhost:5173`.
 - No incluye autenticación todavía.
 - No incluye operaciones de escritura (POST, PUT, DELETE) ni formularios todavía.
+
+---
+
+## Sprint 5F — React Navigation and Read-Only Entity Panels
+
+- **Navegación interna**: Implementada mediante estado de React (`useState`) en `AppShell.tsx` (sin React Router).
+- **Vistas por entidad**: Paneles de solo lectura detallados para cada entidad principal del negocio.
+- **Endpoints consumidos**:
+  - `GET /api/clientes` (Métricas de clientes y catálogo tabular).
+  - `GET /api/tecnicos` (Métricas de técnicos y personal calificado).
+  - `GET /api/solicitudes` (Métricas de solicitudes y control de estado).
+  - `GET /api/visitas-tecnicas` (Registro detallado e inspecciones aprobadas/pendientes).
+- **Restricciones respetadas**:
+  - No incluye autenticación de usuario (JWT o Cookies).
+  - No incluye operaciones de escritura (POST, PUT, DELETE).
+  - No incluye formularios de entrada.
+  - No se instalaron dependencias ni librerías adicionales.
