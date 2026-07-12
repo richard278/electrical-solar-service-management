@@ -88,6 +88,20 @@ builder.Services.AddAuthorization(options =>
 {
     options.AddPolicy("SoloAdmin", p => p.RequireRole("Administrador"));
     options.AddPolicy("SoloTecnico", p => p.RequireRole("Técnico"));
+
+    options.AddPolicy("ApiAuthenticated", policy =>
+    {
+        policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Administrador", "Técnico");
+    });
+
+    options.AddPolicy("ApiAdminOnly", policy =>
+    {
+        policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
+        policy.RequireAuthenticatedUser();
+        policy.RequireRole("Administrador");
+    });
 });
 
 // AntiForgery: header que usas en fetch/AJAX

@@ -1,6 +1,7 @@
 using EcoInstalacion.AppWeb.DTOs.Auth;
 using EcoInstalacion.AppWeb.Services.Auth;
 using EcoInstalacion.BLL.Interfaces;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -23,6 +24,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         }
 
         [HttpPost("login")]
+        [AllowAnonymous]
         public async Task<IActionResult> Login([FromBody] AuthLoginRequestDto request)
         {
             if (!ModelState.IsValid)
