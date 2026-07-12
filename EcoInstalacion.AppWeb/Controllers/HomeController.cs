@@ -1,4 +1,4 @@
-﻿using AutoMapper;
+using AutoMapper;
 using EcoInstalacion.AppWeb.Models.ViewModels;
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
@@ -125,7 +125,7 @@ namespace EcoInstalacion.AppWeb.Controllers
                 if (!string.IsNullOrWhiteSpace(model.ReturnUrl) && Url.IsLocalUrl(model.ReturnUrl))
                     return Redirect(model.ReturnUrl);
 
-                return RedirectToAction("Index", "Usuarios");
+                return RedirectToAction("Index", "Home");
             }
             catch (Exception ex)
             {

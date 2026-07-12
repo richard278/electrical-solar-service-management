@@ -29,7 +29,7 @@ namespace EcoInstalacion.AppWeb.Controllers
         }
 
         [HttpGet]
-        public override IActionResult Index() => View();
+        public new IActionResult Index() => View();
 
         #region Listas
 

@@ -25,7 +25,8 @@ namespace EcoInstalacion.AppWeb.Controllers
             _tecnicoService = tecnicoService;
         }
 
-        public override IActionResult Index() => View();
+        [HttpGet]
+        public new IActionResult Index() => View();
      
         // --- util privado para juntar errores del ModelState ---
         private static string JoinModelErrors(ModelStateDictionary modelState) =>

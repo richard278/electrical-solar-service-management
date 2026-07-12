@@ -22,7 +22,7 @@ namespace EcoInstalacion.AppWeb.Controllers
 
         // GET: /Roles
         [HttpGet]
-        public override IActionResult Index() => View();
+        public new IActionResult Index() => View();
 
         // GET: /Roles/Lista
         [HttpGet]
