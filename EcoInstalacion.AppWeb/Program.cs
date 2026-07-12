@@ -8,6 +8,11 @@ using Microsoft.AspNetCore.Antiforgery;
 using Microsoft.AspNetCore.Mvc;
 using QuestPDF.Infrastructure;
 using System.Security.Claims;
+using Microsoft.AspNetCore.Authentication.JwtBearer;
+using Microsoft.IdentityModel.Tokens;
+using System.Text;
+using EcoInstalacion.AppWeb.Options;
+using EcoInstalacion.AppWeb.Services.Auth;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -28,15 +33,55 @@ builder.Services.AddDbContext<EcoInstaladorContext>(options =>
 // Inyección de dependencias de la capa BLL/DAL
 builder.Services.InyectarDependencia(builder.Configuration);
 
-// Autenticación por cookie
-builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)
-    .AddCookie(options =>
+// Registrar JwtOptions y IJwtTokenService
+builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));
+builder.Services.AddScoped<IJwtTokenService, JwtTokenService>();
+
+// Autenticación por cookie + JWT Bearer
+builder.Services.AddAuthentication(options =>
+{
+    options.DefaultScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+    options.DefaultChallengeScheme = CookieAuthenticationDefaults.AuthenticationScheme;
+})
+.AddCookie(options =>
+{
+    options.LoginPath = "/Home/Index";           // vista de login
+    options.AccessDeniedPath = "/Home/AccesoDenegado";
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
+    options.SlidingExpiration = true;
+})
+.AddJwtBearer(JwtBearerDefaults.AuthenticationScheme, options =>
+{
+    var jwtSection = builder.Configuration.GetSection("Jwt");
+    var secretKey = jwtSection.GetValue<string>("SecretKey");
+
+    var envSecretKey = Environment.GetEnvironmentVariable("Jwt__SecretKey");
+    var finalSecretKey = !string.IsNullOrWhiteSpace(envSecretKey) ? envSecretKey : secretKey;
+
+    if (string.IsNullOrWhiteSpace(finalSecretKey) ||
+        finalSecretKey == "SET_THIS_VALUE_USING_USER_SECRETS_OR_ENVIRONMENT_VARIABLES")
     {
-        options.LoginPath = "/Home/Index";           // vista de login
-        options.AccessDeniedPath = "/Home/AccesoDenegado";
-        options.ExpireTimeSpan = TimeSpan.FromMinutes(60);
-        options.SlidingExpiration = true;
-    });
+        throw new InvalidOperationException("JWT SecretKey is not configured. Use Jwt__SecretKey as an environment variable or user secret.");
+    }
+
+    if (finalSecretKey.Length < 32)
+    {
+        throw new InvalidOperationException("JWT SecretKey must be at least 32 characters long.");
+    }
+
+    options.RequireHttpsMetadata = false;
+    options.SaveToken = true;
+    options.TokenValidationParameters = new TokenValidationParameters
+    {
+        ValidateIssuer = true,
+        ValidateAudience = true,
+        ValidateLifetime = true,
+        ValidateIssuerSigningKey = true,
+        ValidIssuer = jwtSection.GetValue<string>("Issuer"),
+        ValidAudience = jwtSection.GetValue<string>("Audience"),
+        IssuerSigningKey = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(finalSecretKey))
+    };
+});
 
 // Autorización (políticas por rol si quieres)
 builder.Services.AddAuthorization(options =>
