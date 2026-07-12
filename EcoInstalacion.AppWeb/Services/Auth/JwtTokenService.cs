@@ -36,14 +36,9 @@ namespace EcoInstalacion.AppWeb.Services.Auth
             {
                 new Claim(ClaimTypes.NameIdentifier, usuario.IdUsuario.ToString()),
                 new Claim(ClaimTypes.Name, usuario.Nombre ?? string.Empty),
-                new Claim(ClaimTypes.Email, usuario.Correo ?? string.Empty),
-                new Claim(ClaimTypes.Role, rol)
+                new Claim(ClaimTypes.Role, rol),
+                new Claim(JwtRegisteredClaimNames.Jti, Guid.NewGuid().ToString())
             };
-
-            if (!string.IsNullOrWhiteSpace(usuario.UrlFoto))
-            {
-                claims.Add(new Claim("FotoUrl", usuario.UrlFoto));
-            }
 
             var key = new SymmetricSecurityKey(keyBytes);
             var creds = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);

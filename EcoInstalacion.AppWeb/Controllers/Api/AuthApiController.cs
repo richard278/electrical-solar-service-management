@@ -39,7 +39,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                     return Unauthorized(new { mensaje = "Credenciales incorrectas." });
                 }
 
-                if (usuario.EsActivo == false)
+                if (usuario.EsActivo != true)
                 {
                     return StatusCode(StatusCodes.Status403Forbidden, new { mensaje = "El usuario está inactivo. Contacte al administrador." });
                 }
@@ -50,21 +50,18 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                     return StatusCode(StatusCodes.Status403Forbidden, new { mensaje = "Su rol no tiene permisos para acceder al sistema." });
                 }
 
-                var (token, expiresAt, expiresIn) = _jwtTokenService.GenerateToken(usuario, rol);
+                var (token, expiresAt, _) = _jwtTokenService.GenerateToken(usuario, rol);
 
                 var response = new AuthLoginResponseDto
                 {
                     AccessToken = token,
                     TokenType = "Bearer",
-                    ExpiresIn = expiresIn,
-                    ExpiresAt = expiresAt,
+                    ExpiresAtUtc = expiresAt,
                     User = new AuthUserDto
                     {
-                        IdUsuario = usuario.IdUsuario,
+                        Id = usuario.IdUsuario,
                         Nombre = usuario.Nombre ?? string.Empty,
-                        Correo = usuario.Correo ?? string.Empty,
-                        Rol = rol,
-                        FotoUrl = usuario.UrlFoto
+                        Rol = rol
                     }
                 };
 
@@ -77,7 +74,9 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
             }
             catch (Exception ex)
             {
-                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = "Ocurrió un error inesperado al procesar el login.", detalle = ex.Message });
+                // Loguear el error internamente de forma segura
+                System.Diagnostics.Debug.WriteLine($"[AuthError] Error en login API: {ex.Message}");
+                return StatusCode(StatusCodes.Status500InternalServerError, new { mensaje = "Ocurrió un error inesperado al procesar el login." });
             }
         }
     }
