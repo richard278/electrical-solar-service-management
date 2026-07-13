@@ -21,10 +21,15 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const [isAuthenticating, setIsAuthenticating] = useState<boolean>(false);
   const [error, setError] = useState<string | null>(null);
 
-  // Bind the token getter to httpClient whenever the session updates
+  const tokenRef = React.useRef<string | null>(null);
+
+  // Bind the token getter to httpClient using a stable reference
   useEffect(() => {
-    setTokenGetter(() => session?.accessToken ?? null);
-  }, [session]);
+    setTokenGetter(() => tokenRef.current);
+    return () => {
+      setTokenGetter(() => null);
+    };
+  }, []);
 
   // Handle auto-expiration timer using UTC time comparison
   useEffect(() => {
@@ -65,6 +70,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         body: JSON.stringify({ correo, clave })
       });
 
+      tokenRef.current = response.accessToken;
+
       setSession({
         user: response.user,
         accessToken: response.accessToken,
@@ -91,6 +98,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   };
 
   const logout = () => {
+    tokenRef.current = null;
     setSession(null);
     setError(null);
   };

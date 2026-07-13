@@ -1,6 +1,7 @@
 using EcoInstalacion.AppWeb.DTOs.Clientes;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EcoInstalacion.AppWeb.Controllers.Api
@@ -9,6 +10,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
     [Route("api/clientes")]
     [IgnoreAntiforgeryToken]
     [Produces("application/json")]
+    [Authorize(Policy = "ApiAuthenticated")]
     public class ClientesApiController : ControllerBase
     {
         private readonly IClienteService _clienteService;

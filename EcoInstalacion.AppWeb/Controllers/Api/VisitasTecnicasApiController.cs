@@ -1,6 +1,7 @@
 using EcoInstalacion.AppWeb.DTOs.VisitasTecnicas;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
 using System;
@@ -14,6 +15,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
     [Route("api/visitas-tecnicas")]
     [IgnoreAntiforgeryToken]
     [Produces("application/json")]
+    [Authorize(Policy = "ApiAuthenticated")]
     public class VisitasTecnicasApiController : ControllerBase
     {
         private readonly IVisitaTecnicaService _visitaService;

@@ -39,6 +39,9 @@ export async function request<T>(path: string, options: RequestInit = {}): Promi
     const response = await fetch(url, config);
 
     if (!response.ok) {
+      if (response.status === 401) {
+        throw new HttpError(401, 'Sesión no autorizada o expirada.');
+      }
       let errorMessage = `Error HTTP: ${response.status} ${response.statusText}`;
       try {
         const errorData = await response.json();

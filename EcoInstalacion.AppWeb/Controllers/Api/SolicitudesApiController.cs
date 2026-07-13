@@ -1,6 +1,7 @@
 using EcoInstalacion.AppWeb.DTOs.Solicitudes;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EcoInstalacion.AppWeb.Controllers.Api
@@ -9,6 +10,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
     [Route("api/solicitudes")]
     [IgnoreAntiforgeryToken]
     [Produces("application/json")]
+    [Authorize(Policy = "ApiAuthenticated")]
     public class SolicitudesApiController : ControllerBase
     {
         private readonly ISolicitudService _solicitudService;

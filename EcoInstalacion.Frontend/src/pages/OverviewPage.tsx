@@ -41,8 +41,10 @@ export default function OverviewPage() {
           visitasAprobadas: aprobadas,
           visitasPendientes: pendientes,
         });
-      } catch (err) {
-        if (err instanceof Error) {
+      } catch (err: any) {
+        if (err && err.status === 401) {
+          setError("Sesión no autorizada o expirada.");
+        } else if (err instanceof Error) {
           setError(err.message);
         } else {
           setError("Error de conexión al obtener las métricas.");
@@ -73,9 +75,13 @@ export default function OverviewPage() {
 
       {error && (
         <div className="error-alert">
-          <p className="error-title">⚠️ Error de Conexión</p>
+          <p className="error-title">
+            {error.includes("Sesión") || error.includes("autorizada") ? "⚠️ Acceso Denegado" : "⚠️ Error de Conexión"}
+          </p>
           <p className="error-desc">{error}</p>
-          <p className="error-help">Por favor, asegúrate de que el backend se está ejecutando y que CORS está configurado.</p>
+          {!error.includes("Sesión") && !error.includes("autorizada") && (
+            <p className="error-help">Por favor, asegúrate de que el backend se está ejecutando y que CORS está configurado.</p>
+          )}
         </div>
       )}
 
