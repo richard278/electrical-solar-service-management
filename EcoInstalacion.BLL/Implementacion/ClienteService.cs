@@ -61,6 +61,7 @@ namespace EcoInstalacion.BLL.Implementacion
             existente.Telefono = entidad.Telefono;
             existente.Direccion = entidad.Direccion;
             existente.Correo = entidad.Correo;
+            existente.EsActivo = entidad.EsActivo;
 
             var ok = await _repoCliente.Editar(existente);
             if (!ok) throw new TaskCanceledException("No se pudo editar el cliente.");
