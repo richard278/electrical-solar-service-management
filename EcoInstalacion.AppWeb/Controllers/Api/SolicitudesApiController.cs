@@ -42,6 +42,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         }
 
         [HttpPost]
+        [Authorize(Policy = "ApiAdminOnly")]
         [ProducesResponseType(typeof(SolicitudDetailDto), StatusCodes.Status201Created)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<SolicitudDetailDto>> CreateSolicitud([FromBody] SolicitudCreateDto dto)
@@ -79,6 +80,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Policy = "ApiAdminOnly")]
         [ProducesResponseType(typeof(SolicitudDetailDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -122,6 +124,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Policy = "ApiAdminOnly")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

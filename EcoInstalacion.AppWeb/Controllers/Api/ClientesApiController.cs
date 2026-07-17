@@ -109,6 +109,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         }
 
         [HttpPut("{id:int}")]
+        [Authorize(Policy = "ApiAdminOnly")]
         [ProducesResponseType(typeof(ClienteDetailDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
@@ -161,6 +162,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         }
 
         [HttpDelete("{id:int}")]
+        [Authorize(Policy = "ApiAdminOnly")]
         [ProducesResponseType(StatusCodes.Status204NoContent)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]
