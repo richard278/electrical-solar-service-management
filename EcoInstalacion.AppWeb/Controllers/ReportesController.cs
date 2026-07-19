@@ -2,6 +2,7 @@
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using System.Globalization;
@@ -10,7 +11,7 @@ using Microsoft.AspNetCore.Hosting;// ← ESTE es importante para imagenes
 
 namespace EcoInstalacion.AppWeb.Controllers
 {
-    [Authorize(Roles = "Administrador")]
+    [Authorize(Roles = RolesSistema.Administrador)]
     public class ReportesController : Controller
     {
         private readonly IReporteService _reporteService;

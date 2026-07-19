@@ -13,6 +13,7 @@ using Microsoft.IdentityModel.Tokens;
 using System.Text;
 using EcoInstalacion.AppWeb.Options;
 using EcoInstalacion.AppWeb.Services.Auth;
+using EcoInstalacion.Entity.Seguridad;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -86,21 +87,21 @@ builder.Services.AddAuthentication(options =>
 // Autorización (políticas por rol si quieres)
 builder.Services.AddAuthorization(options =>
 {
-    options.AddPolicy("SoloAdmin", p => p.RequireRole("Administrador"));
-    options.AddPolicy("SoloTecnico", p => p.RequireRole("Técnico"));
+    options.AddPolicy("SoloAdmin", p => p.RequireRole(RolesSistema.Administrador));
+    options.AddPolicy("SoloTecnico", p => p.RequireRole(RolesSistema.Tecnico));
 
     options.AddPolicy("ApiAuthenticated", policy =>
     {
         policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Administrador", "Técnico");
+        policy.RequireRole(RolesSistema.Administrador, RolesSistema.Tecnico);
     });
 
     options.AddPolicy("ApiAdminOnly", policy =>
     {
         policy.AuthenticationSchemes.Add(JwtBearerDefaults.AuthenticationScheme);
         policy.RequireAuthenticatedUser();
-        policy.RequireRole("Administrador");
+        policy.RequireRole(RolesSistema.Administrador);
     });
 });
 

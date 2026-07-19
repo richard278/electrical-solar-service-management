@@ -2,12 +2,13 @@
 using EcoInstalacion.AppWeb.Models.ViewModels;
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EcoInstalacion.AppWeb.Controllers
 {
-    [Authorize(Roles = "Administrador,Técnico")]
+    [Authorize(Roles = RolesSistema.AdministradorYTecnico)]
     public class ClientesController : Controller
     {
         private readonly IClienteService _clienteService;

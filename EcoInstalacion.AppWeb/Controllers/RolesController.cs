@@ -3,12 +3,13 @@ using EcoInstalacion.AppWeb.Models.ViewModels;
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EcoInstalacion.AppWeb.Controllers
 {
-    [Authorize(Roles = "Administrador")]
+    [Authorize(Roles = RolesSistema.Administrador)]
     public class RolesController : BaseController
     {
         private readonly IRolService _rolService;

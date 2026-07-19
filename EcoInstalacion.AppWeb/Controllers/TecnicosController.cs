@@ -3,12 +3,13 @@ using EcoInstalacion.AppWeb.Models.ViewModels;
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
 namespace EcoInstalacion.AppWeb.Controllers
 {
-    [Authorize(Roles = "Administrador")]
+    [Authorize(Roles = RolesSistema.Administrador)]
     [AutoValidateAntiforgeryToken] // protege POST/PUT/DELETE leyendo el header RequestVerificationToken
     public class TecnicosController : BaseController
     {

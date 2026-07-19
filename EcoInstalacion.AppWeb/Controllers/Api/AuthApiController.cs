@@ -1,6 +1,7 @@
 using EcoInstalacion.AppWeb.DTOs.Auth;
 using EcoInstalacion.AppWeb.Services.Auth;
 using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -46,13 +47,20 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                     return StatusCode(StatusCodes.Status403Forbidden, new { mensaje = "El usuario está inactivo. Contacte al administrador." });
                 }
 
-                var rol = usuario.IdRolNavigation?.Descripcion?.Trim();
-                if (rol != "Administrador" && rol != "Técnico")
+                var rolEntidad = usuario.IdRolNavigation;
+                if (rolEntidad?.EsActivo != true)
+                {
+                    return StatusCode(StatusCodes.Status403Forbidden, new { mensaje = "El rol del usuario está inactivo. Contacte al administrador." });
+                }
+
+                var rol = rolEntidad.Descripcion?.Trim();
+                if (!RolesSistema.CoincideConCatalogo(usuario.IdRol, rol))
                 {
                     return StatusCode(StatusCodes.Status403Forbidden, new { mensaje = "Su rol no tiene permisos para acceder al sistema." });
                 }
 
-                var (token, expiresAt, _) = _jwtTokenService.GenerateToken(usuario, rol);
+                var rolAutorizado = rol!;
+                var (token, expiresAt, _) = _jwtTokenService.GenerateToken(usuario, rolAutorizado);
 
                 var response = new AuthLoginResponseDto
                 {
@@ -63,7 +71,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                     {
                         Id = usuario.IdUsuario,
                         Nombre = usuario.Nombre ?? string.Empty,
-                        Rol = rol
+                        Rol = rolAutorizado
                     }
                 };
 

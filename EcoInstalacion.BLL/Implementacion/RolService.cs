@@ -1,103 +1,64 @@
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Seguridad;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
     public class RolService : IRolService
     {
         private readonly IGenericRepository<Rol> _repoRol;
-        private readonly IGenericRepository<Usuario> _repoUsuario;
         private readonly IRolRepository _rolRepository;
 
         public RolService(IGenericRepository<Rol> repoRol,
-                          IGenericRepository<Usuario> repoUsuario,
                           IRolRepository rolRepository)
         {
             _repoRol = repoRol;
-            _repoUsuario = repoUsuario;
             _rolRepository = rolRepository;
         }
 
         public async Task<List<Rol>> Lista(string? filtro = null, bool? soloActivos = null)
         {
-            return await _rolRepository.ListaSinTracking(filtro, soloActivos);
+            var roles = await _rolRepository.ListaSinTracking(filtro, soloActivos);
+
+            return roles
+                .Where(RolesSistema.EsRolOperativo)
+                .OrderBy(r => r.IdRol)
+                .ToList();
         }
 
         public async Task<Rol?> ObtenerPorId(int idRol)
         {
-           return await _repoRol.ObtenerDatos(r => r.IdRol == idRol);
+            if (!RolesSistema.EsIdOperativo(idRol))
+                return null;
+
+            var rol = await _repoRol.ObtenerDatos(r => r.IdRol == idRol);
+            return RolesSistema.EsRolOperativo(rol) ? rol : null;
         }
 
-        public async Task<Rol> Crear(Rol entidad)
+        public Task<Rol> Crear(Rol entidad)
         {
-            if (string.IsNullOrWhiteSpace(entidad.Descripcion))
-                throw new ArgumentException("La descripción es obligatoria.", nameof(entidad.Descripcion));
-
-            string descripcion = entidad.Descripcion.Trim().ToUpper();
-
-            // Único por nombre (case-insensitive)
-            var yaExiste = await _repoRol.ObtenerDatos(r =>
-                r.Descripcion != null &&
-                r.Descripcion.ToUpper() == descripcion);
-
-            if (yaExiste is not null)
-                throw new InvalidOperationException("Ya existe un rol con esa descripción.");
-
-            entidad.Descripcion = entidad.Descripcion.Trim();
-            entidad.EsActivo = entidad.EsActivo; // respeta lo que venga (o true por defecto)
-            entidad.FechaRegistro = DateTime.UtcNow;
-
-            return await _repoRol.Crear(entidad);
+            ArgumentNullException.ThrowIfNull(entidad);
+            throw CatalogoCerrado();
         }
 
-        public async Task<Rol> Editar(Rol entidad)
+        public Task<Rol> Editar(Rol entidad)
         {
-            if (string.IsNullOrWhiteSpace(entidad.Descripcion))
-                throw new ArgumentException("La descripción es obligatoria.", nameof(entidad.Descripcion));
-
-            var db = await _repoRol.ObtenerDatos(r => r.IdRol == entidad.IdRol)
-                     ?? throw new KeyNotFoundException("Rol no encontrado.");
-
-            // Si cambia la descripción, validar unicidad
-            if (!string.Equals(db.Descripcion, entidad.Descripcion, StringComparison.OrdinalIgnoreCase))
-            {
-                string descripcion = entidad.Descripcion.Trim().ToUpper();
-                var colision = await _repoRol.ObtenerDatos(r =>
-                    r.IdRol != entidad.IdRol &&
-                    r.Descripcion != null &&
-                    r.Descripcion.ToUpper() == descripcion);
-
-                if (colision is not null)
-                    throw new InvalidOperationException("Ya existe otro rol con esa descripción.");
-            }
-
-            db.Descripcion = entidad.Descripcion.Trim();
-            db.EsActivo = entidad.EsActivo;
-
-            await _repoRol.Editar(db);
-            return db;
+            ArgumentNullException.ThrowIfNull(entidad);
+            throw CatalogoCerrado();
         }
 
-        public async Task<bool> CambiarEstado(int idRol, bool esActivo)
+        public Task<bool> CambiarEstado(int idRol, bool esActivo)
         {
-            var db = await _repoRol.ObtenerDatos(r => r.IdRol == idRol)
-                     ?? throw new KeyNotFoundException("Rol no encontrado.");
-            db.EsActivo = esActivo;
-            return await _repoRol.Editar(db);
+            throw CatalogoCerrado();
         }
 
-        public async Task<bool> Eliminar(int idRol)
+        public Task<bool> Eliminar(int idRol)
         {
-            var db = await _repoRol.ObtenerDatos(r => r.IdRol == idRol)
-                     ?? throw new KeyNotFoundException("Rol no encontrado.");
-
-            // Evitar borrar roles en uso
-            var tieneUsuarios = (await _repoUsuario.Consultar(u => u.IdRol == idRol)).Any();
-            if (tieneUsuarios)
-                throw new InvalidOperationException("No se puede eliminar el rol: tiene usuarios asignados.");
-
-            return await _repoRol.Eliminar(db);
+            throw CatalogoCerrado();
         }
+
+        private static InvalidOperationException CatalogoCerrado() =>
+            new("El catálogo de roles es cerrado y de solo lectura. Los únicos roles permitidos son Administrador y Técnico.");
     }
 }

@@ -2,13 +2,14 @@
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.AspNetCore.Authorization;
 
 namespace EcoInstalacion.AppWeb.Controllers
 {
-    [Authorize(Roles = "Administrador")]
+    [Authorize(Roles = RolesSistema.Administrador)]
     public class VisitasTecnicasController : Controller
     {
         private readonly IVisitaTecnicaService _visitaService;

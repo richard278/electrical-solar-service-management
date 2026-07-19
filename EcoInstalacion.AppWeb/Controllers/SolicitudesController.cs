@@ -1,6 +1,7 @@
 using EcoInstalacion.AppWeb.Models.ViewModels;
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
@@ -8,7 +9,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 namespace EcoInstalacion.AppWeb.Controllers
 {
     // Solo Administrador y Técnico pueden ver/gestionar solicitudes
-    [Authorize(Roles = "Administrador,Técnico")]
+    [Authorize(Roles = RolesSistema.AdministradorYTecnico)]
     public class SolicitudesController : BaseController
     {
         private readonly ISolicitudService _solicitudService;

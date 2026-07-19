@@ -2,6 +2,7 @@ using AutoMapper;
 using EcoInstalacion.AppWeb.Models.ViewModels;
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -78,15 +79,22 @@ namespace EcoInstalacion.AppWeb.Controllers
                 }
 
                 // 2) Usuario activo
-                if (usuario.EsActivo == false)
+                if (usuario.EsActivo != true)
                 {
                     ModelState.AddModelError(string.Empty, "El usuario está inactivo. Contacte al administrador.");
                     return View(model);
                 }
 
-                // 3) Rol permitido (solo Administrador o Técnico)
-                var rol = usuario.IdRolNavigation?.Descripcion?.Trim();
-                if (rol != "Administrador" && rol != "Técnico")
+                // 3) Rol activo y permitido (solo Administrador o Técnico)
+                var rolEntidad = usuario.IdRolNavigation;
+                if (rolEntidad?.EsActivo != true)
+                {
+                    ModelState.AddModelError(string.Empty, "El rol del usuario está inactivo. Contacte al administrador.");
+                    return View(model);
+                }
+
+                var rol = rolEntidad.Descripcion?.Trim();
+                if (!RolesSistema.CoincideConCatalogo(usuario.IdRol, rol))
                 {
                     ModelState.AddModelError(string.Empty, "Su rol no tiene permisos para acceder al sistema.");
                     return View(model);

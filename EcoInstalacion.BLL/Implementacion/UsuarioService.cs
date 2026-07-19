@@ -2,12 +2,14 @@
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Seguridad;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
     public class UsuarioService : IUsuarioService
     {
         private readonly IGenericRepository<Usuario> _repositorio;
+        private readonly IGenericRepository<Rol> _repositorioRol;
         private readonly IUsuarioRepository _usuarioRepository;
         private readonly ICorreoService _correoService;
         private readonly IUtilidadesService _utilidadesService;
@@ -15,6 +17,7 @@ namespace EcoInstalacion.BLL.Implementacion
 
         public UsuarioService(
             IGenericRepository<Usuario> repositorio,
+            IGenericRepository<Rol> repositorioRol,
             IFirebaseService _,// Retenido para compatibilidad futura
             ICorreoService correoService,
             IUtilidadesService utilidadesService,
@@ -22,6 +25,7 @@ namespace EcoInstalacion.BLL.Implementacion
             IUsuarioRepository usuarioRepository)
         {
             _repositorio = repositorio;
+            _repositorioRol = repositorioRol;
             _usuarioRepository = usuarioRepository;
             _correoService = correoService;
             _utilidadesService = utilidadesService;
@@ -41,6 +45,9 @@ namespace EcoInstalacion.BLL.Implementacion
         )
         {
             // 1) Validaciones previas
+            ArgumentNullException.ThrowIfNull(entidad);
+            await ValidarAsignacionRol(entidad);
+
             var existe = await _repositorio.ObtenerDatos(u => u.Correo == entidad.Correo);
             if (existe is not null)
                 throw new TaskCanceledException("El correo ya existe");
@@ -93,14 +100,18 @@ namespace EcoInstalacion.BLL.Implementacion
             string NombreFoto = ""
         )
         {
-            // 1) Correo duplicado (excluyendo el propio)
+            ArgumentNullException.ThrowIfNull(entidad);
+
+            // 1) Obtener usuario y validar la asignación de rol
+            var usuario = await _usuarioRepository.ObtenerPorIdConRolTracking(entidad.IdUsuario)
+                ?? throw new TaskCanceledException("El usuario no existe");
+
+            await ValidarAsignacionRol(entidad, usuario);
+
+            // 2) Correo duplicado (excluyendo el propio)
             var dup = await _repositorio.ObtenerDatos(u => u.Correo == entidad.Correo && u.IdUsuario != entidad.IdUsuario);
             if (dup is not null)
                 throw new TaskCanceledException("El correo ya existe");
-
-            // 2) Obtener usuario
-            var usuario = await _usuarioRepository.ObtenerPorIdConRolTracking(entidad.IdUsuario)
-                ?? throw new TaskCanceledException("El usuario no existe");
 
             // 3) Actualizar datos base
             usuario.Nombre = entidad.Nombre;
@@ -142,6 +153,9 @@ namespace EcoInstalacion.BLL.Implementacion
         {
             var usuario = await _repositorio.ObtenerDatos(u => u.IdUsuario == idUsuario)
             ?? throw new TaskCanceledException("El usuario no existe");
+
+            if (usuario.IdRol == RolesSistema.AdministradorId)
+                throw new InvalidOperationException("No se puede eliminar al único usuario Administrador del sistema.");
 
             var foto = usuario.NombreFoto;
 
@@ -228,6 +242,36 @@ namespace EcoInstalacion.BLL.Implementacion
                 throw new TaskCanceledException("No se pudo guardar el perfil!");
 
             return true;
+        }
+
+        private async Task ValidarAsignacionRol(Usuario entidad, Usuario? usuarioActual = null)
+        {
+            if (!RolesSistema.EsIdOperativo(entidad.IdRol))
+                throw new InvalidOperationException("Solo se pueden asignar los roles Administrador y Técnico.");
+
+            var rol = await _repositorioRol.ObtenerDatos(r => r.IdRol == entidad.IdRol!.Value);
+
+            if (!RolesSistema.EsRolOperativo(rol))
+                throw new InvalidOperationException("El rol seleccionado no existe, está inactivo o no coincide con el catálogo autorizado.");
+
+            if (usuarioActual?.IdRol == RolesSistema.AdministradorId &&
+                (entidad.IdRol != RolesSistema.AdministradorId || entidad.EsActivo != true))
+            {
+                throw new InvalidOperationException("El único usuario Administrador debe conservar su rol y permanecer activo.");
+            }
+
+            if (entidad.IdRol == RolesSistema.AdministradorId)
+            {
+                if (entidad.EsActivo != true)
+                    throw new InvalidOperationException("El usuario Administrador debe permanecer activo.");
+
+                var otroAdministrador = await _repositorio.ObtenerDatos(u =>
+                    u.IdRol == RolesSistema.AdministradorId &&
+                    u.IdUsuario != entidad.IdUsuario);
+
+                if (otroAdministrador is not null)
+                    throw new InvalidOperationException("Ya existe el único usuario Administrador permitido por el sistema.");
+            }
         }
     }
 }

@@ -1,6 +1,7 @@
 using EcoInstalacion.AppWeb.DTOs.Clientes;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 
@@ -108,7 +109,7 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                 return NotFound(new { message = "Cliente no encontrado." });
 
             // Si el cliente está inactivo y el usuario no es Administrador: 404
-            if (!cliente.EsActivo && !User.IsInRole("Administrador"))
+            if (!cliente.EsActivo && !User.IsInRole(RolesSistema.Administrador))
                 return NotFound(new { message = "Cliente no encontrado." });
 
             return Ok(MapToDetailDto(cliente));

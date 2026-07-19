@@ -1,5 +1,6 @@
 using EcoInstalacion.AppWeb.Options;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.Extensions.Options;
 using Microsoft.IdentityModel.Tokens;
 using System.IdentityModel.Tokens.Jwt;
@@ -19,6 +20,13 @@ namespace EcoInstalacion.AppWeb.Services.Auth
 
         public (string Token, DateTime ExpiresAt, int ExpiresIn) GenerateToken(Usuario usuario, string rol)
         {
+            if (usuario.EsActivo != true ||
+                usuario.IdRolNavigation?.EsActivo != true ||
+                !RolesSistema.CoincideConCatalogo(usuario.IdRol, rol))
+            {
+                throw new InvalidOperationException("No se puede emitir un JWT para un usuario o rol no autorizado.");
+            }
+
             if (string.IsNullOrWhiteSpace(_jwtOptions.SecretKey) ||
                 _jwtOptions.SecretKey == "SET_THIS_VALUE_USING_USER_SECRETS_OR_ENVIRONMENT_VARIABLES")
             {

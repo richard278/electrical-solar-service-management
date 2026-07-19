@@ -3,6 +3,7 @@ using EcoInstalacion.AppWeb.Models.ViewModels;
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Newtonsoft.Json;
@@ -11,7 +12,7 @@ using System.ComponentModel.DataAnnotations;
 namespace EcoInstalacion.AppWeb.Controllers
 {
     // Solo Administrador puede entrar a este módulo
-    [Authorize(Roles = "Administrador")]
+    [Authorize(Roles = RolesSistema.Administrador)]
     public class UsuariosController : BaseController
     {
         private readonly IUsuarioService _usuarioService;
@@ -36,7 +37,7 @@ namespace EcoInstalacion.AppWeb.Controllers
         [HttpGet]
         public async Task<IActionResult> ListaRoles()
         {
-            var roles = await _rolService.Lista();
+            var roles = await _rolService.Lista(soloActivos: true);
             var vm = _mapper.Map<List<VMRol>>(roles);
             return StatusCode(StatusCodes.Status200OK, vm);
         }

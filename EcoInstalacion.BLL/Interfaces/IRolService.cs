@@ -12,10 +12,11 @@ namespace EcoInstalacion.BLL.Interfaces
         Task<List<Rol>> Lista(string? filtro = null, bool? soloActivos = null);
         Task<Rol?> ObtenerPorId(int idRol);
 
+        // El catálogo está cerrado; estos contratos se conservan por compatibilidad
+        // y rechazan cualquier intento de mutación en la implementación.
         Task<Rol> Crear(Rol entidad);
         Task<Rol> Editar(Rol entidad);
         Task<bool> CambiarEstado(int idRol, bool esActivo);
-        // Elimina físicamente el rol sólo si no tiene usuarios asignados.
         Task<bool> Eliminar(int idRol);
     }
 }
