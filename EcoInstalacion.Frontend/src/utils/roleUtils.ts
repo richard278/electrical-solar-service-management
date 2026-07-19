@@ -39,3 +39,18 @@ export function canDeleteCliente(user?: AuthUser | null): boolean {
   const norm = normalizeRole(user?.rol);
   return norm === 'administrador';
 }
+
+/** Administrador puede crear registros del catálogo de personal técnico. */
+export function canCreateTecnico(user?: AuthUser | null): boolean {
+  return normalizeRole(user?.rol) === 'administrador';
+}
+
+/** Administrador puede editar registros del catálogo de personal técnico. */
+export function canEditTecnico(user?: AuthUser | null): boolean {
+  return normalizeRole(user?.rol) === 'administrador';
+}
+
+/** Administrador puede eliminar técnicos que no tengan solicitudes asociadas. */
+export function canDeleteTecnico(user?: AuthUser | null): boolean {
+  return normalizeRole(user?.rol) === 'administrador';
+}
