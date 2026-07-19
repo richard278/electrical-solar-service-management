@@ -1,0 +1,488 @@
+/* =========================================================
+   MutationUi.css — Scoped styles for Clientes mutation UI.
+   All classes are prefixed with "mutation-" to avoid
+   conflicting with any pre-existing project-wide selectors.
+   ========================================================= */
+
+/* Shared Overlay and Modal Structure */
+.mutation-modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(15, 23, 42, 0.65);
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  padding: 16px;
+  box-sizing: border-box;
+  animation: mutationModalFadeIn 0.2s ease-out;
+}
+
+@keyframes mutationModalFadeIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+.mutation-modal-dialog {
+  background: #ffffff;
+  border-radius: 16px;
+  width: 100%;
+  max-width: 540px;
+  box-shadow:
+    0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    0 10px 10px -5px rgba(0, 0, 0, 0.04);
+  border: 1px solid #e2e8f0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: mutationModalSlideUp 0.2s ease-out;
+}
+
+@keyframes mutationModalSlideUp {
+  from { transform: translateY(12px); }
+  to   { transform: translateY(0); }
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-modal-dialog {
+    background: #1e293b;
+    border-color: #334155;
+    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.4);
+  }
+}
+
+.mutation-modal-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-modal-header {
+    border-bottom-color: #334155;
+  }
+}
+
+.mutation-modal-title {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-modal-title {
+    color: #f8fafc;
+  }
+}
+
+.mutation-modal-close-btn {
+  background: transparent;
+  border: none;
+  font-size: 20px;
+  color: #64748b;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 6px;
+  line-height: 1;
+  transition: background-color 0.15s, color 0.15s;
+}
+
+.mutation-modal-close-btn:hover:not(:disabled) {
+  background-color: #f1f5f9;
+  color: #0f172a;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-modal-close-btn:hover:not(:disabled) {
+    background-color: #334155;
+    color: #f8fafc;
+  }
+}
+
+.mutation-modal-close-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.mutation-modal-body {
+  padding: 24px;
+  overflow-y: auto;
+  max-height: 75vh;
+}
+
+/* Loading state inside the modal body */
+.mutation-modal-loading {
+  text-align: center;
+  padding: 40px;
+}
+
+.mutation-modal-loading-text {
+  margin: 12px 0 0;
+  color: #64748b;
+  font-size: 14px;
+}
+
+/* Confirm modal message text */
+.mutation-confirm-message {
+  margin: 0;
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.mutation-modal-footer {
+  padding: 16px 24px;
+  background-color: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-modal-footer {
+    background-color: #0f172a;
+    border-top-color: #334155;
+  }
+}
+
+/* Forms and Inputs */
+.mutation-form-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.mutation-form-group {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.mutation-form-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-form-label {
+    color: #cbd5e1;
+  }
+}
+
+.mutation-form-label .required-star {
+  color: #ef4444;
+  margin-left: 2px;
+}
+
+.mutation-form-control {
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 14px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  box-sizing: border-box;
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-form-control {
+    background-color: #0f172a;
+    border-color: #475569;
+    color: #f8fafc;
+  }
+}
+
+.mutation-form-control:focus {
+  outline: none;
+  border-color: #0fa47a;
+  box-shadow: 0 0 0 3px rgba(15, 164, 122, 0.15);
+}
+
+.mutation-form-control.is-invalid {
+  border-color: #ef4444;
+}
+
+.mutation-form-control.is-invalid:focus {
+  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.15);
+}
+
+.mutation-field-error {
+  font-size: 12px;
+  color: #ef4444;
+  margin: 0;
+}
+
+.mutation-field-help {
+  font-size: 12px;
+  color: #64748b;
+  margin: 2px 0 0;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-field-help {
+    color: #94a3b8;
+  }
+}
+
+/* Modal Error Alerts */
+.mutation-error-banner {
+  background-color: rgba(239, 68, 68, 0.1);
+  border: 1px solid rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-error-banner {
+    color: #fca5a5;
+  }
+}
+
+.mutation-error-list {
+  margin: 6px 0 0 18px;
+  padding: 0;
+}
+
+/* Buttons */
+.mutation-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 9px 18px;
+  font-size: 14px;
+  font-weight: 600;
+  border-radius: 8px;
+  border: 1px solid transparent;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, transform 0.05s;
+  font-family: inherit;
+  line-height: 1.4;
+}
+
+.mutation-btn:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.mutation-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.mutation-btn-primary {
+  background-color: #0fa47a;
+  color: #ffffff;
+}
+
+.mutation-btn-primary:hover:not(:disabled) {
+  background-color: #0d8a67;
+}
+
+.mutation-btn-secondary {
+  background-color: #e2e8f0;
+  color: #334155;
+  border-color: #cbd5e1;
+}
+
+.mutation-btn-secondary:hover:not(:disabled) {
+  background-color: #cbd5e1;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-btn-secondary {
+    background-color: #334155;
+    color: #e2e8f0;
+    border-color: #475569;
+  }
+
+  .mutation-btn-secondary:hover:not(:disabled) {
+    background-color: #475569;
+  }
+}
+
+.mutation-btn-danger {
+  background-color: #ef4444;
+  color: #ffffff;
+}
+
+.mutation-btn-danger:hover:not(:disabled) {
+  background-color: #dc2626;
+}
+
+.mutation-btn-sm {
+  padding: 5px 12px;
+  font-size: 12px;
+  border-radius: 6px;
+}
+
+/* Header row: title + action buttons (e.g. "Nuevo Cliente" button) */
+.mutation-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.mutation-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+/* Action Cell Buttons in Table */
+.mutation-action-buttons {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Inline Spinner for Buttons */
+.mutation-spinner {
+  width: 14px;
+  height: 14px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: #ffffff;
+  border-radius: 50%;
+  animation: mutationSpinnerRotate 0.6s linear infinite;
+}
+
+@keyframes mutationSpinnerRotate {
+  to { transform: rotate(360deg); }
+}
+
+/* Page-level operational error banner (outside modals) */
+.mutation-page-op-error {
+  background-color: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.25);
+  color: #dc2626;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-page-op-error {
+    color: #fca5a5;
+  }
+}
+
+/* Retry button margin helper */
+.mutation-retry-margin {
+  margin-top: 12px;
+}
+
+/* Filter bar (Admin only) */
+.mutation-filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.mutation-filter-icon {
+  color: #64748b;
+}
+
+.mutation-filter-label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #334155;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-filter-label {
+    color: #cbd5e1;
+  }
+}
+
+.mutation-filter-btn {
+  padding: 5px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 20px;
+  border: 1px solid #cbd5e1;
+  background-color: #f1f5f9;
+  color: #334155;
+  cursor: pointer;
+  transition: background-color 0.15s, border-color 0.15s, color 0.15s;
+  font-family: inherit;
+}
+
+.mutation-filter-btn:hover {
+  background-color: #e2e8f0;
+  border-color: #94a3b8;
+}
+
+.mutation-filter-btn--active {
+  background-color: #0fa47a;
+  border-color: #0fa47a;
+  color: #ffffff;
+}
+
+.mutation-filter-btn--active:hover {
+  background-color: #0d8a67;
+  border-color: #0d8a67;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-filter-btn {
+    background-color: #1e293b;
+    border-color: #475569;
+    color: #cbd5e1;
+  }
+
+  .mutation-filter-btn:hover {
+    background-color: #334155;
+  }
+
+  .mutation-filter-btn--active {
+    background-color: #0fa47a;
+    border-color: #0fa47a;
+    color: #ffffff;
+  }
+}
+
+/* Success banner */
+.mutation-success-banner {
+  background-color: rgba(15, 164, 122, 0.1);
+  border: 1px solid rgba(15, 164, 122, 0.3);
+  color: #0a7a5a;
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-success-banner {
+    color: #6ee7c7;
+  }
+}

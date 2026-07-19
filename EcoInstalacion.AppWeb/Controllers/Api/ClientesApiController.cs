@@ -20,24 +20,82 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
             _clienteService = clienteService;
         }
 
+        // ──────────────────────────────────────────────────────────────────────
+        // Helpers
+        // ──────────────────────────────────────────────────────────────────────
+
+        private static ClienteListDto MapToListDto(Cliente c) => new()
+        {
+            Id             = c.Id,
+            NombreCompleto = c.NombreCompleto,
+            Dui            = c.Dui,
+            Telefono       = c.Telefono,
+            Direccion      = c.Direccion,
+            Correo         = c.Correo,
+            EsActivo       = c.EsActivo
+        };
+
+        private static ClienteDetailDto MapToDetailDto(Cliente c) => new()
+        {
+            Id             = c.Id,
+            NombreCompleto = c.NombreCompleto,
+            Dui            = c.Dui,
+            Telefono       = c.Telefono,
+            Direccion      = c.Direccion,
+            Correo         = c.Correo,
+            EsActivo       = c.EsActivo
+        };
+
+        // ──────────────────────────────────────────────────────────────────────
+        // GET /api/clientes — clientes activos (Administrador y Técnico)
+        // ──────────────────────────────────────────────────────────────────────
+
         [HttpGet]
         [ProducesResponseType(typeof(List<ClienteListDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<List<ClienteListDto>>> GetClientes()
         {
             var clientes = await _clienteService.Lista();
-
-            var result = clientes.Select(c => new ClienteListDto
-            {
-                Id = c.Id,
-                NombreCompleto = c.NombreCompleto,
-                Dui = c.Dui,
-                Telefono = c.Telefono,
-                Correo = c.Correo,
-                EsActivo = c.EsActivo
-            }).ToList();
-
-            return Ok(result);
+            return Ok(clientes.Select(MapToListDto).ToList());
         }
+
+        // ──────────────────────────────────────────────────────────────────────
+        // GET /api/clientes/administracion?estado=activos|inactivos|todos
+        // Solo Administrador (ApiAdminOnly)
+        // ──────────────────────────────────────────────────────────────────────
+
+        [HttpGet("administracion")]
+        [Authorize(Policy = "ApiAdminOnly")]
+        [ProducesResponseType(typeof(List<ClienteListDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<List<ClienteListDto>>> GetClientesAdministracion(
+            [FromQuery] string estado = "activos")
+        {
+            var estadoNorm = estado.Trim().ToLowerInvariant();
+
+            if (estadoNorm != "activos" && estadoNorm != "inactivos" && estadoNorm != "todos")
+            {
+                return BadRequest(new
+                {
+                    message = $"Valor de estado inválido: '{estado}'. Los valores aceptados son: activos, inactivos, todos."
+                });
+            }
+
+            bool? esActivo = estadoNorm switch
+            {
+                "activos"   => true,
+                "inactivos" => false,
+                _           => (bool?)null
+            };
+
+            var clientes = await _clienteService.ListaPorEstado(esActivo);
+            return Ok(clientes.Select(MapToListDto).ToList());
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
+        // GET /api/clientes/{id}
+        // Administrador: activo e inactivo.
+        // Técnico: solo activo (inactivo → 404 para no revelar existencia).
+        // ──────────────────────────────────────────────────────────────────────
 
         [HttpGet("{id:int}")]
         [ProducesResponseType(typeof(ClienteDetailDto), StatusCodes.Status200OK)]
@@ -49,19 +107,16 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
             if (cliente is null)
                 return NotFound(new { message = "Cliente no encontrado." });
 
-            var result = new ClienteDetailDto
-            {
-                Id = cliente.Id,
-                NombreCompleto = cliente.NombreCompleto,
-                Dui = cliente.Dui,
-                Telefono = cliente.Telefono,
-                Direccion = cliente.Direccion,
-                Correo = cliente.Correo,
-                EsActivo = cliente.EsActivo
-            };
+            // Si el cliente está inactivo y el usuario no es Administrador: 404
+            if (!cliente.EsActivo && !User.IsInRole("Administrador"))
+                return NotFound(new { message = "Cliente no encontrado." });
 
-            return Ok(result);
+            return Ok(MapToDetailDto(cliente));
         }
+
+        // ──────────────────────────────────────────────────────────────────────
+        // POST /api/clientes — Administrador y Técnico. EsActivo = true siempre.
+        // ──────────────────────────────────────────────────────────────────────
 
         [HttpPost]
         [ProducesResponseType(typeof(ClienteDetailDto), StatusCodes.Status201Created)]
@@ -76,27 +131,15 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                 var entidad = new Cliente
                 {
                     NombreCompleto = dto.NombreCompleto.Trim(),
-                    Dui = dto.Dui.Trim(),
-                    Telefono = dto.Telefono?.Trim(),
-                    Direccion = dto.Direccion?.Trim(),
-                    Correo = dto.Correo?.Trim(),
-                    EsActivo = true
+                    Dui            = dto.Dui.Trim(),
+                    Telefono       = dto.Telefono?.Trim(),
+                    Direccion      = dto.Direccion?.Trim(),
+                    Correo         = dto.Correo?.Trim(),
+                    EsActivo       = true
                 };
 
                 var creado = await _clienteService.Crear(entidad);
-
-                var result = new ClienteDetailDto
-                {
-                    Id = creado.Id,
-                    NombreCompleto = creado.NombreCompleto,
-                    Dui = creado.Dui,
-                    Telefono = creado.Telefono,
-                    Direccion = creado.Direccion,
-                    Correo = creado.Correo,
-                    EsActivo = creado.EsActivo
-                };
-
-                return CreatedAtAction(nameof(GetClienteById), new { id = result.Id }, result);
+                return CreatedAtAction(nameof(GetClienteById), new { id = creado.Id }, MapToDetailDto(creado));
             }
             catch (TaskCanceledException ex)
             {
@@ -107,6 +150,10 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                 return BadRequest(new { message = ex.Message });
             }
         }
+
+        // ──────────────────────────────────────────────────────────────────────
+        // PUT /api/clientes/{id} — Solo Administrador
+        // ──────────────────────────────────────────────────────────────────────
 
         [HttpPut("{id:int}")]
         [Authorize(Policy = "ApiAdminOnly")]
@@ -126,26 +173,14 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                     return NotFound(new { message = "Cliente no encontrado." });
 
                 existente.NombreCompleto = dto.NombreCompleto.Trim();
-                existente.Dui = dto.Dui.Trim();
-                existente.Telefono = dto.Telefono?.Trim();
-                existente.Direccion = dto.Direccion?.Trim();
-                existente.Correo = dto.Correo?.Trim();
-                existente.EsActivo = dto.EsActivo;
+                existente.Dui            = dto.Dui.Trim();
+                existente.Telefono       = dto.Telefono?.Trim();
+                existente.Direccion      = dto.Direccion?.Trim();
+                existente.Correo         = dto.Correo?.Trim();
+                existente.EsActivo       = dto.EsActivo;
 
                 var actualizado = await _clienteService.Editar(existente);
-
-                var result = new ClienteDetailDto
-                {
-                    Id = actualizado.Id,
-                    NombreCompleto = actualizado.NombreCompleto,
-                    Dui = actualizado.Dui,
-                    Telefono = actualizado.Telefono,
-                    Direccion = actualizado.Direccion,
-                    Correo = actualizado.Correo,
-                    EsActivo = actualizado.EsActivo
-                };
-
-                return Ok(result);
+                return Ok(MapToDetailDto(actualizado));
             }
             catch (TaskCanceledException ex)
             {
@@ -160,6 +195,10 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                 return NotFound(new { message = ex.Message });
             }
         }
+
+        // ──────────────────────────────────────────────────────────────────────
+        // DELETE /api/clientes/{id} — Solo Administrador
+        // ──────────────────────────────────────────────────────────────────────
 
         [HttpDelete("{id:int}")]
         [Authorize(Policy = "ApiAdminOnly")]

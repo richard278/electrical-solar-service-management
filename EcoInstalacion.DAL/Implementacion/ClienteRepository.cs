@@ -29,6 +29,18 @@ namespace EcoInstalacion.DAL.Implementacion
                 .ToListAsync();
         }
 
+        public async Task<List<Cliente>> ListaPorEstadoSinTracking(bool? esActivo)
+        {
+            var query = _dbContext.Set<Cliente>().AsNoTracking();
+
+            if (esActivo.HasValue)
+                query = query.Where(c => c.EsActivo == esActivo.Value);
+
+            return await query
+                .OrderBy(c => c.NombreCompleto)
+                .ToListAsync();
+        }
+
         public async Task<Cliente?> ObtenerPorIdSinTracking(int id)
         {
             return await _dbContext.Set<Cliente>()

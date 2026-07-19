@@ -6,6 +6,7 @@ namespace EcoInstalacion.DAL.Interfaces
     {
         Task<bool> TieneSolicitudes(int clienteId);
         Task<List<Cliente>> ListaActivosSinTracking();
+        Task<List<Cliente>> ListaPorEstadoSinTracking(bool? esActivo);
         Task<Cliente?> ObtenerPorIdSinTracking(int id);
     }
 }

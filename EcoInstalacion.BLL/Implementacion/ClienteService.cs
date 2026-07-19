@@ -88,6 +88,10 @@ namespace EcoInstalacion.BLL.Implementacion
             return await _repoClienteSpecific.ListaActivosSinTracking();
         }
 
+        public async Task<List<Cliente>> ListaPorEstado(bool? esActivo)
+        {
+            return await _repoClienteSpecific.ListaPorEstadoSinTracking(esActivo);
+        }
 
         public async Task<Cliente?> ObtenerPorId(int id)
         {
