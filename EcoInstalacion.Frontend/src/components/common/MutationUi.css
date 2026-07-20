@@ -395,7 +395,7 @@
   margin-top: 12px;
 }
 
-/* Filter bar (Admin only) */
+/* Shared filter bar */
 .mutation-filter-bar {
   display: flex;
   align-items: center;
@@ -484,5 +484,130 @@
 @media (prefers-color-scheme: dark) {
   .mutation-success-banner {
     color: #6ee7c7;
+  }
+}
+
+/* Solicitudes: wider form, responsive field grid and read-only detail */
+.mutation-modal-dialog-wide {
+  max-width: 720px;
+}
+
+.mutation-form-grid-two {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+}
+
+.mutation-form-group-wide {
+  grid-column: 1 / -1;
+}
+
+.mutation-readonly-value {
+  margin: 0;
+  padding: 10px 14px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background-color: #f8fafc;
+  color: #334155;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.mutation-detail-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 16px;
+  margin: 0;
+}
+
+.mutation-detail-item {
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  background-color: #f8fafc;
+}
+
+.mutation-detail-item-wide {
+  grid-column: 1 / -1;
+}
+
+.mutation-detail-item dt {
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.mutation-detail-item dd {
+  margin: 0;
+  color: #0f172a;
+  font-size: 14px;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+  white-space: pre-wrap;
+}
+
+.mutation-filter-count {
+  margin-left: auto;
+  color: #64748b;
+  font-size: 12px;
+}
+
+.status-pill.mutation-status-scheduled {
+  background-color: rgba(59, 130, 246, 0.14);
+  color: #1d4ed8;
+}
+
+.status-pill.mutation-status-progress {
+  background-color: rgba(14, 165, 233, 0.16);
+  color: #0369a1;
+}
+
+.mutation-action-buttons {
+  flex-wrap: wrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-readonly-value,
+  .mutation-detail-item {
+    background-color: #0f172a;
+    border-color: #334155;
+  }
+
+  .mutation-readonly-value,
+  .mutation-detail-item dd {
+    color: #e2e8f0;
+  }
+
+  .mutation-detail-item dt,
+  .mutation-filter-count {
+    color: #94a3b8;
+  }
+
+  .status-pill.mutation-status-scheduled {
+    color: #93c5fd;
+  }
+
+  .status-pill.mutation-status-progress {
+    color: #7dd3fc;
+  }
+}
+
+@media (max-width: 680px) {
+  .mutation-form-grid-two,
+  .mutation-detail-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .mutation-form-group-wide,
+  .mutation-detail-item-wide {
+    grid-column: auto;
+  }
+
+  .mutation-filter-count {
+    width: 100%;
+    margin-left: 0;
   }
 }

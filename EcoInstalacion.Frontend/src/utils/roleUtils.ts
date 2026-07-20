@@ -54,3 +54,18 @@ export function canEditTecnico(user?: AuthUser | null): boolean {
 export function canDeleteTecnico(user?: AuthUser | null): boolean {
   return normalizeRole(user?.rol) === 'administrador';
 }
+
+/** Administrador puede registrar solicitudes de instalación. */
+export function canCreateSolicitud(user?: AuthUser | null): boolean {
+  return normalizeRole(user?.rol) === 'administrador';
+}
+
+/** Administrador puede editar y cambiar el estado de una solicitud. */
+export function canEditSolicitud(user?: AuthUser | null): boolean {
+  return normalizeRole(user?.rol) === 'administrador';
+}
+
+/** Administrador puede eliminar solicitudes que no tengan visitas asociadas. */
+export function canDeleteSolicitud(user?: AuthUser | null): boolean {
+  return normalizeRole(user?.rol) === 'administrador';
+}
