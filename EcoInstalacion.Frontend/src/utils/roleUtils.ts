@@ -69,3 +69,23 @@ export function canEditSolicitud(user?: AuthUser | null): boolean {
 export function canDeleteSolicitud(user?: AuthUser | null): boolean {
   return normalizeRole(user?.rol) === 'administrador';
 }
+
+/** Administrador puede registrar visitas técnicas. */
+export function canCreateVisitaTecnica(user?: AuthUser | null): boolean {
+  return normalizeRole(user?.rol) === 'administrador';
+}
+
+/** Administrador puede editar fecha y observaciones de visitas técnicas. */
+export function canEditVisitaTecnica(user?: AuthUser | null): boolean {
+  return normalizeRole(user?.rol) === 'administrador';
+}
+
+/** Administrador puede aprobar visitas pendientes de forma irreversible. */
+export function canApproveVisitaTecnica(user?: AuthUser | null): boolean {
+  return normalizeRole(user?.rol) === 'administrador';
+}
+
+/** Administrador puede eliminar únicamente visitas pendientes. */
+export function canDeleteVisitaTecnica(user?: AuthUser | null): boolean {
+  return normalizeRole(user?.rol) === 'administrador';
+}

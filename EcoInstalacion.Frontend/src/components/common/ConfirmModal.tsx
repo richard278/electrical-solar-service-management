@@ -8,6 +8,8 @@ interface ConfirmModalProps {
   message: string;
   confirmText?: string;
   cancelText?: string;
+  confirmVariant?: 'primary' | 'danger';
+  submittingText?: string;
   isSubmitting?: boolean;
   error?: string | null;
   /** Lucide icon node to show in the confirm button (optional) */
@@ -22,6 +24,8 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
   message,
   confirmText = 'Eliminar',
   cancelText = 'Cancelar',
+  confirmVariant = 'danger',
+  submittingText = 'Eliminando...',
   isSubmitting = false,
   error = null,
   confirmIcon,
@@ -171,14 +175,14 @@ export const ConfirmModal: React.FC<ConfirmModalProps> = ({
           </button>
           <button
             type="button"
-            className="mutation-btn mutation-btn-danger"
+            className={`mutation-btn mutation-btn-${confirmVariant}`}
             onClick={onConfirm}
             disabled={isSubmitting}
           >
             {isSubmitting ? (
               <>
                 <span className="mutation-spinner" aria-hidden="true"></span>
-                <span>Eliminando...</span>
+                <span>{submittingText}</span>
               </>
             ) : (
               <>
