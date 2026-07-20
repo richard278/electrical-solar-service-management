@@ -24,15 +24,20 @@ namespace EcoInstalacion.BLL.Implementacion
         {
             if (entidad is null) throw new ArgumentNullException(nameof(entidad));
 
-            // Validar solicitud existente
-            var solicitud = await _repoSolicitud.ObtenerDatos(s => s.Id == entidad.SolicitudId);
-            if (solicitud is null) throw new TaskCanceledException("La solicitud asociada no existe.");
+            NormalizarYValidarCampos(entidad);
 
-            if (entidad.FechaVisita == default) entidad.FechaVisita = DateTime.UtcNow;
+            var solicitud = await _repoSolicitud.ObtenerDatos(s => s.Id == entidad.SolicitudId);
+            ValidarSolicitudParaNuevaVisita(solicitud);
+
+            entidad.Aprobado = entidad.Aprobado == true;
 
             var creada = await _repoVisita.Crear(entidad);
             if (creada is null || creada.Id <= 0) throw new TaskCanceledException("No se pudo crear la visita técnica.");
-            return creada;
+
+            // Si nació aprobada, el trigger avanza la solicitud dentro de la
+            // misma operación de inserción. La recarga devuelve ese estado.
+            var completa = await ObtenerPorId(creada.Id);
+            return completa ?? creada;
         }
 
         public async Task<VisitasTecnica> Editar(VisitasTecnica entidad)
@@ -43,17 +48,30 @@ namespace EcoInstalacion.BLL.Implementacion
             if (existente is null) throw new KeyNotFoundException("La visita técnica no existe.");
 
             if (existente.SolicitudId != entidad.SolicitudId)
+                throw new InvalidOperationException("No se puede cambiar la solicitud asociada a una visita existente.");
+
+            NormalizarYValidarCampos(entidad);
+
+            var estabaAprobada = existente.Aprobado == true;
+            var aprobar = entidad.Aprobado == true;
+
+            if (estabaAprobada && !aprobar)
+                throw new InvalidOperationException("Una visita aprobada no puede volver al estado pendiente.");
+
+            var avanzarSolicitud = !estabaAprobada && aprobar;
+            if (avanzarSolicitud)
             {
-                var solicitud = await _repoSolicitud.ObtenerDatos(s => s.Id == entidad.SolicitudId);
-                if (solicitud is null) throw new TaskCanceledException("La nueva solicitud no existe.");
-                existente.SolicitudId = entidad.SolicitudId;
+                var solicitud = await _repoSolicitud.ObtenerDatos(s => s.Id == existente.SolicitudId);
+                ValidarSolicitudParaAprobacion(solicitud);
             }
 
-            existente.FechaVisita = entidad.FechaVisita == default ? existente.FechaVisita : entidad.FechaVisita; // <-- unificado
+            existente.FechaVisita = entidad.FechaVisita;
             existente.Observaciones = entidad.Observaciones;
-            existente.Aprobado = entidad.Aprobado;
+            existente.Aprobado = aprobar;
 
-            var ok = await _repoVisita.Editar(existente);
+            var ok = await _visitaTecnicaRepository.EditarConTransicionAprobacion(
+                existente,
+                avanzarSolicitud);
             if (!ok) throw new TaskCanceledException("No se pudo editar la visita técnica.");
 
             // Devolver con relaciones
@@ -66,6 +84,9 @@ namespace EcoInstalacion.BLL.Implementacion
             var existente = await _repoVisita.ObtenerDatos(v => v.Id == id);
             if (existente is null) return false;
 
+            if (existente.Aprobado == true)
+                throw new InvalidOperationException("No se puede eliminar una visita aprobada.");
+
             return await _repoVisita.Eliminar(existente);
         }
 
@@ -76,12 +97,56 @@ namespace EcoInstalacion.BLL.Implementacion
 
         public async Task<List<VisitasTecnica>> ListaPorSolicitud(int solicitudId)
         {
+            if (solicitudId <= 0)
+                throw new ArgumentException("La solicitud indicada no es válida.");
+
             return await _visitaTecnicaRepository.ListaPorSolicitudConSolicitudCliente(solicitudId);
         }
 
         public async Task<VisitasTecnica?> ObtenerPorId(int id)
         {
             return await _visitaTecnicaRepository.ObtenerPorIdConSolicitudCliente(id);
+        }
+
+        private static void NormalizarYValidarCampos(VisitasTecnica entidad)
+        {
+            if (entidad.SolicitudId <= 0)
+                throw new ArgumentException("Debe seleccionar una solicitud válida.");
+
+            if (entidad.FechaVisita == default)
+                throw new ArgumentException("La fecha de visita es obligatoria.");
+
+            // SQL Server datetime no admite fechas anteriores a 1753.
+            if (entidad.FechaVisita < new DateTime(1753, 1, 1))
+                throw new ArgumentException("La fecha de visita no es válida.");
+
+            var observaciones = entidad.Observaciones?.Trim();
+            if (observaciones?.Length > 500)
+                throw new ArgumentException("Las observaciones no deben exceder 500 caracteres.");
+
+            entidad.Observaciones = string.IsNullOrWhiteSpace(observaciones)
+                ? null
+                : observaciones;
+        }
+
+        private static void ValidarSolicitudParaNuevaVisita(SolicitudesInstalacion? solicitud)
+        {
+            if (solicitud is null)
+                throw new ArgumentException("La solicitud asociada no existe.");
+
+            var estado = EstadosSolicitudSistema.NormalizarRequerido(solicitud.Estado);
+            if (EstadosSolicitudSistema.EsTerminal(estado))
+                throw new InvalidOperationException("No se pueden registrar visitas en una solicitud cerrada o rechazada.");
+        }
+
+        private static void ValidarSolicitudParaAprobacion(SolicitudesInstalacion? solicitud)
+        {
+            if (solicitud is null)
+                throw new ArgumentException("La solicitud asociada no existe.");
+
+            var estado = EstadosSolicitudSistema.NormalizarRequerido(solicitud.Estado);
+            if (EstadosSolicitudSistema.EsTerminal(estado))
+                throw new InvalidOperationException("No se puede aprobar una visita de una solicitud cerrada o rechazada.");
         }
     }
 }

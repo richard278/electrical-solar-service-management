@@ -165,7 +165,10 @@
         }
 
         function validar() {
-            const solicitudId = $('#cboSolicitud').val();
+            const idActual = parseInt($('#txtId').val() || '0');
+            const solicitudId = idActual === 0
+                ? $('#cboSolicitud').val()
+                : $('#cboSolicitud').data('solicitud-id');
             const fechaVal = $('#txtFechaVisita').val();
 
             if (!solicitudId) return "Debe seleccionar una solicitud.";
@@ -188,14 +191,15 @@
             // Combo de filtro (arriba)
             let htmlFiltro = '<option value="">— Todas —</option>';
             solicitudesCombo.forEach(s => {
-                htmlFiltro += `<option value="${s.id}">#${s.id} - ${s.clienteNombre}</option>`;
+                htmlFiltro += `<option value="${s.id}">#${s.id} - ${s.clienteNombre} (${s.estado || 'Sin estado'})</option>`;
             });
             $('#cboFiltroSolicitud').html(htmlFiltro);
 
             // Combo del modal
             let htmlModal = '<option value="">— Seleccione —</option>';
             solicitudesCombo.forEach(s => {
-                htmlModal += `<option value="${s.id}">#${s.id} - ${s.clienteNombre}</option>`;
+                const disabled = s.disponibleParaVisita ? '' : ' disabled';
+                htmlModal += `<option value="${s.id}"${disabled}>#${s.id} - ${s.clienteNombre} (${s.estado || 'Sin estado'})</option>`;
             });
             $('#cboSolicitud').html(htmlModal);
         }
@@ -262,17 +266,21 @@
                         orderable: false, searchable: false, width: '18%',
                         render: function (data) {
                             const val = data.aprobado === true || data.aprobado === 'true';
-                            const txtToggle = val ? 'Revertir' : 'Aprobar';
+                            const accionesMutables = val
+                                ? '<span class="badge badge-secondary" title="Una visita aprobada no puede desaprobarse ni eliminarse">Protegida</span>'
+                                : `
+                                <button class="btn btn-sm btn-danger btn-eliminar" title="Eliminar">
+                                    <i class="fas fa-trash-alt"></i>
+                                </button>
+                                <button class="btn btn-sm btn-info btn-toggle" title="Aprobar">
+                                    <i class="fas fa-check-circle"></i>
+                                </button>`;
+
                             return `
                                 <button class="btn btn-sm btn-primary btn-editar" title="Editar">
                                     <i class="fas fa-pencil-alt"></i>
                                 </button>
-                                <button class="btn btn-sm btn-danger btn-eliminar" title="Eliminar">
-                                    <i class="fas fa-trash-alt"></i>
-                                </button>
-                                <button class="btn btn-sm btn-info btn-toggle" title="${txtToggle}">
-                                    <i class="fas fa-check-circle"></i>
-                                </button>
+                                ${accionesMutables}
                             `;
                         }
                     }
@@ -312,7 +320,9 @@
                 $('#txtId').val(0);
                 $('#frmVisita')[0].reset();
                 $('#cboSolicitud').val('');
+                $('#cboSolicitud').removeData('solicitud-id').prop('disabled', false);
                 $('#chkAprobado').prop('checked', false);
+                $('#chkAprobado').prop('disabled', false);
                 $('#modalData').modal('show');
             });
 
@@ -325,10 +335,14 @@
                 }
 
                 const fechaVal = $('#txtFechaVisita').val();
+                const id = parseInt($('#txtId').val() || '0');
+                const solicitudId = id === 0
+                    ? parseInt($('#cboSolicitud').val())
+                    : parseInt($('#cboSolicitud').data('solicitud-id'));
 
                 const payload = {
-                    id: parseInt($('#txtId').val() || '0'),
-                    solicitudId: parseInt($('#cboSolicitud').val()),
+                    id: id,
+                    solicitudId: solicitudId,
                     fechaVisita: fechaVal ? new Date(fechaVal).toISOString() : null,
                     aprobado: $('#chkAprobado').is(':checked'),
                     observaciones: $('#txtObservaciones').val().trim() || null
@@ -366,8 +380,10 @@
 
                 $('#txtId').val(data.id);
                 $('#cboSolicitud').val(data.solicitudId || '');
+                $('#cboSolicitud').data('solicitud-id', data.solicitudId).prop('disabled', true);
                 $('#txtFechaVisita').val(data.fechaVisita ? toLocalDateTimeValue(data.fechaVisita) : '');
-                $('#chkAprobado').prop('checked', data.aprobado === true || data.aprobado === 'true');
+                const aprobada = data.aprobado === true || data.aprobado === 'true';
+                $('#chkAprobado').prop('checked', aprobada).prop('disabled', aprobada);
                 $('#txtObservaciones').val(data.observaciones || '');
 
                 $('#modalData').modal('show');
@@ -416,7 +432,7 @@
                 const data = tabla.row($(this).closest('tr')).data();
                 if (!data) return;
 
-                const nuevoEstado = !(data.aprobado === true || data.aprobado === 'true');
+                if (data.aprobado === true || data.aprobado === 'true') return;
 
                 const runToggle = async () => {
                     try {
@@ -425,7 +441,7 @@
                             {
                                 method: 'PATCH',
                                 headers: { 'Content-Type': 'application/json' },
-                                body: JSON.stringify({ id: data.id, aprobado: nuevoEstado })
+                                body: JSON.stringify({ id: data.id, aprobado: true })
                             }
                         );
 
@@ -443,15 +459,15 @@
 
                 if (window.Swal) {
                     Swal.fire({
-                        title: '¿Cambiar estado de aprobación?',
-                        text: `Visita #${data.id} será marcada como "${nuevoEstado ? 'Aprobada' : 'No aprobada'}"`,
+                        title: '¿Aprobar visita?',
+                        text: `La visita #${data.id} será aprobada y su solicitud avanzará a "En proceso". Esta acción no se puede revertir.`,
                         icon: 'question',
                         showCancelButton: true,
-                        confirmButtonText: 'Sí, cambiar',
+                        confirmButtonText: 'Sí, aprobar',
                         cancelButtonText: 'Cancelar'
                     }).then(r => { if (r.isConfirmed) runToggle(); });
                 } else {
-                    if (confirm('¿Cambiar estado de aprobación?')) runToggle();
+                    if (confirm('¿Aprobar esta visita? Esta acción no se puede revertir.')) runToggle();
                 }
             });
 

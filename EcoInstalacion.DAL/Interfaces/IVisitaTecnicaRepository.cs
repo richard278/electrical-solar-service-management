@@ -7,5 +7,8 @@ namespace EcoInstalacion.DAL.Interfaces
         Task<List<VisitasTecnica>> ListaConSolicitudCliente();
         Task<List<VisitasTecnica>> ListaPorSolicitudConSolicitudCliente(int solicitudId);
         Task<VisitasTecnica?> ObtenerPorIdConSolicitudCliente(int id);
+        Task<bool> EditarConTransicionAprobacion(
+            VisitasTecnica visita,
+            bool actualizarSolicitudAEnProceso);
     }
 }

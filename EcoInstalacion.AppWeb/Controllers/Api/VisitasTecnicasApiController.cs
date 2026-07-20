@@ -27,10 +27,14 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
 
         [HttpGet]
         [ProducesResponseType(typeof(List<VisitaTecnicaListDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
         public async Task<ActionResult<List<VisitaTecnicaListDto>>> GetVisitas([FromQuery] int? solicitudId = null)
         {
+            if (solicitudId.HasValue && solicitudId.Value <= 0)
+                return BadRequest(new { message = "La solicitud indicada no es válida." });
+
             List<VisitasTecnica> visitas;
-            if (solicitudId.HasValue && solicitudId.Value > 0)
+            if (solicitudId.HasValue)
             {
                 visitas = await _visitaService.ListaPorSolicitud(solicitudId.Value);
             }
@@ -69,9 +73,9 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                 var entidad = new VisitasTecnica
                 {
                     SolicitudId = dto.SolicitudId,
-                    FechaVisita = dto.FechaVisita,
+                    FechaVisita = dto.FechaVisita!.Value,
                     Observaciones = dto.Observaciones?.Trim(),
-                    Aprobado = dto.Aprobado
+                    Aprobado = dto.Aprobado!.Value
                 };
 
                 var creada = await _visitaService.Crear(entidad);
@@ -110,10 +114,9 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                 if (existente is null)
                     return NotFound(new { message = "Visita técnica no encontrada." });
 
-                existente.SolicitudId = dto.SolicitudId;
-                existente.FechaVisita = dto.FechaVisita;
+                existente.FechaVisita = dto.FechaVisita!.Value;
                 existente.Observaciones = dto.Observaciones?.Trim();
-                existente.Aprobado = dto.Aprobado;
+                existente.Aprobado = dto.Aprobado!.Value;
 
                 var actualizada = await _visitaService.Editar(existente);
                 var result = ToDetailDto(actualizada);
@@ -179,7 +182,11 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                 SolicitudId = visita.SolicitudId,
                 FechaVisita = visita.FechaVisita,
                 Observaciones = visita.Observaciones,
-                Aprobado = visita.Aprobado
+                Aprobado = visita.Aprobado == true,
+                ClienteNombre = visita.Solicitud?.Cliente?.NombreCompleto,
+                TipoInstalacion = visita.Solicitud?.TipoInstalacion,
+                EstadoSolicitud = visita.Solicitud?.Estado,
+                TecnicoNombre = visita.Solicitud?.TecnicoAsignado?.Nombre
             };
         }
 
@@ -191,10 +198,11 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                 SolicitudId = visita.SolicitudId,
                 FechaVisita = visita.FechaVisita,
                 Observaciones = visita.Observaciones,
-                Aprobado = visita.Aprobado,
+                Aprobado = visita.Aprobado == true,
                 ClienteNombre = visita.Solicitud?.Cliente?.NombreCompleto,
                 TipoInstalacion = visita.Solicitud?.TipoInstalacion,
-                EstadoSolicitud = visita.Solicitud?.Estado
+                EstadoSolicitud = visita.Solicitud?.Estado,
+                TecnicoNombre = visita.Solicitud?.TecnicoAsignado?.Nombre
             };
         }
     }

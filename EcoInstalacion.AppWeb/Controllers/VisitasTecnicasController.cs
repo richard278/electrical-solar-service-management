@@ -40,7 +40,10 @@ namespace EcoInstalacion.AppWeb.Controllers
             {
                 IEnumerable<VisitasTecnica> data;
 
-                if (solicitudId.HasValue && solicitudId.Value > 0)
+                if (solicitudId.HasValue && solicitudId.Value <= 0)
+                    throw new ArgumentException("La solicitud indicada no es válida.");
+
+                if (solicitudId.HasValue)
                     data = await _visitaService.ListaPorSolicitud(solicitudId.Value);
                 else
                     data = await _visitaService.Lista();
@@ -69,7 +72,11 @@ namespace EcoInstalacion.AppWeb.Controllers
                     .Select(s => new
                     {
                         s.Id,
-                        ClienteNombre = s.Cliente?.NombreCompleto ?? "(sin cliente)"
+                        ClienteNombre = s.Cliente?.NombreCompleto ?? "(sin cliente)",
+                        s.Estado,
+                        DisponibleParaVisita =
+                            EstadosSolicitudSistema.TryNormalizar(s.Estado, out _) &&
+                            !EstadosSolicitudSistema.EsTerminal(s.Estado)
                     })
                     .OrderBy(x => x.Id)
                     .ToList();
@@ -177,10 +184,6 @@ namespace EcoInstalacion.AppWeb.Controllers
                     r.Mensaje = "La solicitud asociada no existe.";
                     return BadRequest(r);
                 }
-
-                // Si por alguna razón viene FechaVisita sin valor, ponemos
-                if (vm.FechaVisita == default)
-                    vm.FechaVisita = DateTime.UtcNow;
 
                 var creada = await _visitaService.Crear(vm.ToEntity());
 

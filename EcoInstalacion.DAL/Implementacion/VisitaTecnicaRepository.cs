@@ -20,6 +20,8 @@ namespace EcoInstalacion.DAL.Implementacion
                 .AsNoTracking()
                 .Include(v => v.Solicitud)
                     .ThenInclude(s => s.Cliente)
+                .Include(v => v.Solicitud)
+                    .ThenInclude(s => s.TecnicoAsignado)
                 .OrderByDescending(v => v.FechaVisita)
                 .ToListAsync();
         }
@@ -30,6 +32,8 @@ namespace EcoInstalacion.DAL.Implementacion
                 .AsNoTracking()
                 .Include(v => v.Solicitud)
                     .ThenInclude(s => s.Cliente)
+                .Include(v => v.Solicitud)
+                    .ThenInclude(s => s.TecnicoAsignado)
                 .Where(v => v.SolicitudId == solicitudId)
                 .OrderByDescending(v => v.FechaVisita)
                 .ToListAsync();
@@ -41,7 +45,29 @@ namespace EcoInstalacion.DAL.Implementacion
                 .AsNoTracking()
                 .Include(v => v.Solicitud)
                     .ThenInclude(s => s.Cliente)
+                .Include(v => v.Solicitud)
+                    .ThenInclude(s => s.TecnicoAsignado)
                 .FirstOrDefaultAsync(v => v.Id == id);
+        }
+
+        public async Task<bool> EditarConTransicionAprobacion(
+            VisitasTecnica visita,
+            bool actualizarSolicitudAEnProceso)
+        {
+            if (actualizarSolicitudAEnProceso)
+            {
+                var solicitud = await _dbContext.Set<SolicitudesInstalacion>()
+                    .FirstOrDefaultAsync(s => s.Id == visita.SolicitudId);
+
+                if (solicitud is null)
+                    throw new InvalidOperationException("La solicitud asociada no existe.");
+
+                solicitud.Estado = EstadosSolicitudSistema.EnProceso;
+            }
+
+            _dbContext.Update(visita);
+            await _dbContext.SaveChangesAsync();
+            return true;
         }
     }
 }
