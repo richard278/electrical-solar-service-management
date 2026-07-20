@@ -57,7 +57,6 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                     ClienteId = dto.ClienteId,
                     TipoInstalacion = dto.TipoInstalacion?.Trim(),
                     Descripcion = dto.Descripcion?.Trim(),
-                    Estado = dto.Estado?.Trim(),
                     TecnicoAsignadoId = dto.TecnicoAsignadoId
                 };
 

@@ -1,14 +1,15 @@
-﻿namespace EcoInstalacion.AppWeb.Models.ViewModels
-{
-    public class EstadosSolicitud
-    {
-        public const string Pendiente = "Pendiente";
-        public const string Programada = "Programada";
-        public const string EnProceso = "En Proceso";
-        public const string Cerrada = "Cerrada";
-        public const string Rechazada = "Rechazada";
+﻿using EcoInstalacion.Entity;
 
-        public static readonly string[] Todos =
-            { Pendiente, Programada, EnProceso, Cerrada, Rechazada };
+namespace EcoInstalacion.AppWeb.Models.ViewModels
+{
+    public static class EstadosSolicitud
+    {
+        public const string Pendiente = EstadosSolicitudSistema.Pendiente;
+        public const string Programada = EstadosSolicitudSistema.Programada;
+        public const string EnProceso = EstadosSolicitudSistema.EnProceso;
+        public const string Cerrada = EstadosSolicitudSistema.Cerrada;
+        public const string Rechazada = EstadosSolicitudSistema.Rechazada;
+
+        public static IReadOnlyList<string> Todos => EstadosSolicitudSistema.Todos;
     }
 }

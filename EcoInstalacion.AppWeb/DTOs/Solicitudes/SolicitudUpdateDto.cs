@@ -4,18 +4,21 @@ namespace EcoInstalacion.AppWeb.DTOs.Solicitudes
 {
     public class SolicitudUpdateDto
     {
-        [Required(ErrorMessage = "El cliente es obligatorio.")]
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un cliente válido.")]
         public int ClienteId { get; set; }
 
-        [StringLength(50, ErrorMessage = "El tipo de instalación no debe exceder 50 caracteres.")]
+        [Required(ErrorMessage = "El tipo de instalación es obligatorio.")]
+        [StringLength(50, MinimumLength = 3, ErrorMessage = "El tipo de instalación debe tener entre 3 y 50 caracteres.")]
         public string? TipoInstalacion { get; set; }
 
         [StringLength(500, ErrorMessage = "La descripción no debe exceder 500 caracteres.")]
         public string? Descripcion { get; set; }
 
+        [Required(ErrorMessage = "El estado es obligatorio.")]
         [StringLength(20, ErrorMessage = "El estado no debe exceder 20 caracteres.")]
         public string? Estado { get; set; }
 
+        [Range(1, int.MaxValue, ErrorMessage = "Debe seleccionar un técnico válido.")]
         public int? TecnicoAsignadoId { get; set; }
     }
 }

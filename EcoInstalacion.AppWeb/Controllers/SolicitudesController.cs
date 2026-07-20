@@ -1,6 +1,7 @@
 using EcoInstalacion.AppWeb.Models.ViewModels;
 using EcoInstalacion.AppWeb.Utilidades.Response;
 using EcoInstalacion.BLL.Interfaces;
+using EcoInstalacion.Entity;
 using EcoInstalacion.Entity.Seguridad;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -8,7 +9,7 @@ using Microsoft.AspNetCore.Mvc.ModelBinding;
 
 namespace EcoInstalacion.AppWeb.Controllers
 {
-    // Solo Administrador y Técnico pueden ver/gestionar solicitudes
+    // Administrador y Técnico pueden consultar; solo Administrador puede mutar.
     [Authorize(Roles = RolesSistema.AdministradorYTecnico)]
     public class SolicitudesController : BaseController
     {
@@ -40,7 +41,7 @@ namespace EcoInstalacion.AppWeb.Controllers
             var r = new GenericResponse<object>();
             try
             {
-                var clientes = (await _clienteService.Lista())
+                var clientes = (await _clienteService.ListaPorEstado(true))
                                 .Select(c => new { c.Id, c.NombreCompleto })
                                 .OrderBy(x => x.NombreCompleto)
                                 .ToList();
@@ -86,24 +87,22 @@ namespace EcoInstalacion.AppWeb.Controllers
 
         // 🔐 Crear (POST JSON + AntiForgery)
         [HttpPost]
+        [Authorize(Roles = RolesSistema.Administrador)]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Guardar([FromBody] VMSolicitudesInstalacion vm)
         {
             var r = new GenericResponse<VMSolicitudesInstalacion>();
             try
             {
+                // El estado inicial es una regla del dominio, no una elección
+                // del cliente que invoca la operación.
+                ModelState.Remove(nameof(VMSolicitudesInstalacion.Estado));
+                vm.Estado = EstadosSolicitudSistema.Pendiente;
+
                 if (!ModelState.IsValid)
                 {
                     r.Estado = false;
                     r.Mensaje = JoinModelErrors(ModelState);
-                    return BadRequest(r);
-                }
-
-                if (!string.IsNullOrWhiteSpace(vm.Estado) &&
-                    !EstadosSolicitud.Todos.Contains(vm.Estado))
-                {
-                    r.Estado = false;
-                    r.Mensaje = "Estado inválido.";
                     return BadRequest(r);
                 }
 
@@ -126,6 +125,7 @@ namespace EcoInstalacion.AppWeb.Controllers
 
         // 🔐 Editar (PUT JSON + AntiForgery)
         [HttpPut]
+        [Authorize(Roles = RolesSistema.Administrador)]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Editar([FromBody] VMSolicitudesInstalacion vm)
         {
@@ -139,13 +139,14 @@ namespace EcoInstalacion.AppWeb.Controllers
                     return BadRequest(r);
                 }
 
-                if (!string.IsNullOrWhiteSpace(vm.Estado) &&
-                    !EstadosSolicitud.Todos.Contains(vm.Estado))
+                if (!EstadosSolicitudSistema.TryNormalizar(vm.Estado, out var estadoNormalizado))
                 {
                     r.Estado = false;
                     r.Mensaje = "Estado inválido.";
                     return BadRequest(r);
                 }
+
+                vm.Estado = estadoNormalizado;
 
                 var actualizada = await _solicitudService.Editar(vm.ToEntity());
                 var completa = await _solicitudService.ObtenerPorId(actualizada.Id);
@@ -163,6 +164,7 @@ namespace EcoInstalacion.AppWeb.Controllers
 
         // 🔐 Eliminar (DELETE + AntiForgery)
         [HttpDelete]
+        [Authorize(Roles = RolesSistema.Administrador)]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Eliminar(int id)
         {
