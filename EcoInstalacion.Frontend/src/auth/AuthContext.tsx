@@ -1,20 +1,8 @@
-import React, { createContext, useState, useEffect } from 'react';
+import React, { useCallback, useState, useEffect } from 'react';
 import { request, HttpError, setTokenGetter } from '../services/httpClient';
-import type { AuthUser, AuthSession, AuthLoginResponse } from '../types/auth';
-
-interface AuthContextType {
-  user: AuthUser | null;
-  accessToken: string | null;
-  expiresAtUtc: string | null;
-  isAuthenticated: boolean;
-  isAuthenticating: boolean;
-  error: string | null;
-  login: (correo: string, clave: string) => Promise<void>;
-  logout: () => void;
-  clearError: () => void;
-}
-
-export const AuthContext = createContext<AuthContextType | undefined>(undefined);
+import type { AuthSession, AuthLoginResponse } from '../types/auth';
+import { AuthContext } from './authContextDefinition';
+import type { AuthContextType } from './authContextDefinition';
 
 export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [session, setSession] = useState<AuthSession | null>(null);
@@ -103,9 +91,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setError(null);
   };
 
-  const clearError = () => {
+  const clearError = useCallback(() => {
     setError(null);
-  };
+  }, []);
 
   const value: AuthContextType = {
     user: session?.user ?? null,

@@ -17,7 +17,7 @@ export default function LoginPage() {
       setValidationError(null);
       clearError();
     }
-  }, [correo, clave]);
+  }, [correo, clave, clearError]);
 
   // Focus the email field on mount
   useEffect(() => {
@@ -50,7 +50,7 @@ export default function LoginPage() {
 
     try {
       await login(trimmedCorreo, clave);
-    } catch (err) {
+    } catch {
       // Error is stored in AuthContext, but we clean password and focus password field
       setClave('');
       setTimeout(() => {
