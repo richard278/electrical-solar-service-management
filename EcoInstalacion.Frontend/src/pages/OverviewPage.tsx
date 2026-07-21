@@ -119,15 +119,15 @@ export default function OverviewPage() {
             </div>
 
             <div className="detail-section milestone-card">
-              <h3>Próximo Hito de Desarrollo</h3>
+              <h3>Seguridad de la Aplicación</h3>
               <div className="status-pill badge-warning" style={{ display: "inline-block", marginBottom: "12px" }}>
-                Planificado
+                Activa
               </div>
               <p style={{ margin: "0 0 10px 0", fontSize: "14px", fontWeight: "600" }}>
-                Auth API Foundation / Protected Routes
+                Autenticación JWT / Acceso por roles
               </p>
               <p style={{ margin: 0, fontSize: "13px", color: "var(--text-light)" }} className="milestone-desc">
-                Establecer base de autenticación mediante JSON Web Tokens (JWT) y cookies seguras en peticiones HTTP para restringir accesos según roles.
+                La interfaz consume rutas protegidas mediante JSON Web Tokens (JWT) y presenta las operaciones disponibles de acuerdo con el rol autenticado.
               </p>
             </div>
           </div>
@@ -135,7 +135,7 @@ export default function OverviewPage() {
       )}
 
       <div className="note" style={{ marginTop: "32px" }}>
-        ℹ️ <strong>Nota de Seguridad:</strong> Este panel opera exclusivamente bajo el modo <strong>solo lectura</strong> (Read-Only Entity Panels). No se realizan mutaciones en el servidor en este sprint.
+        ℹ️ <strong>Nota de Seguridad:</strong> El acceso al panel y a las operaciones de gestión está protegido mediante autenticación JWT y autorización por roles.
       </div>
     </div>
   );

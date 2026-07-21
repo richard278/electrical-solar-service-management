@@ -104,10 +104,10 @@ export default function AppShell() {
         </div>
         <div className="header-meta">
           <div className="meta-badge sprint-badge">
-            React Navigation Sprint 5F
+            Panel operativo React
           </div>
           <div className="meta-badge mode-badge">
-            Read-only entity panels
+            Acceso protegido por roles
           </div>
         </div>
       </header>

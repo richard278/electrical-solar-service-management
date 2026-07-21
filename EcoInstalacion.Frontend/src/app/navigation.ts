@@ -20,21 +20,21 @@ export const navigationItems: NavigationItem[] = [
   {
     id: "clientes",
     label: "Clientes",
-    description: "Catálogo de clientes registrados",
+    description: "Gestión de clientes registrados",
   },
   {
     id: "tecnicos",
     label: "Técnicos",
-    description: "Catálogo de personal técnico",
+    description: "Gestión del personal técnico",
   },
   {
     id: "solicitudes",
     label: "Solicitudes",
-    description: "Solicitudes de instalación eléctrica/solar",
+    description: "Gestión de solicitudes eléctricas y solares",
   },
   {
     id: "visitas",
     label: "Visitas Técnicas",
-    description: "Visitas de campo y aprobaciones",
+    description: "Gestión de visitas y aprobaciones",
   },
 ];
