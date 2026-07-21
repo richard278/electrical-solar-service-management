@@ -1,4 +1,14 @@
 import { useState } from "react";
+import {
+  CircleUserRound,
+  ClipboardList,
+  House,
+  Ruler,
+  Sun,
+  Users,
+  Wrench,
+  type LucideIcon,
+} from "lucide-react";
 import { navigationItems, type AppSection } from "./navigation";
 import OverviewPage from "../pages/OverviewPage";
 import ClientesPage from "../pages/ClientesPage";
@@ -7,6 +17,14 @@ import TecnicosPage from "../pages/TecnicosPage";
 import SolicitudesPage from "../pages/SolicitudesPage";
 import VisitasTecnicasPage from "../pages/VisitasTecnicasPage";
 import { API_BASE_URL } from "../config/environment";
+
+const navigationIcons: Record<AppSection, LucideIcon> = {
+  overview: House,
+  clientes: Users,
+  tecnicos: Wrench,
+  solicitudes: ClipboardList,
+  visitas: Ruler,
+};
 
 export default function AppShell() {
   const [activeSection, setActiveSection] = useState<AppSection>("overview");
@@ -96,7 +114,9 @@ export default function AppShell() {
       {/* Header Institucional */}
       <header className="app-header">
         <div className="header-brand">
-          <div className="brand-logo">☀️</div>
+          <div className="brand-logo">
+            <Sun aria-hidden="true" size={28} strokeWidth={2} />
+          </div>
           <div className="brand-info">
             <h1 className="brand-title">EcoInstalacion</h1>
             <span className="brand-subtitle">Electrical Solar Service Management</span>
@@ -119,19 +139,16 @@ export default function AppShell() {
           <nav className="sidebar-nav">
             {navigationItems.map((item) => {
               const isActive = activeSection === item.id;
+              const NavigationIcon = navigationIcons[item.id];
               return (
                 <button
                    key={item.id}
                    className={`nav-button ${isActive ? "active" : ""}`}
                    onClick={() => setActiveSection(item.id)}
-                   title={item.description}
+                  title={item.description}
                 >
                   <span className="nav-icon">
-                    {item.id === "overview" && "🏠"}
-                    {item.id === "clientes" && "👥"}
-                    {item.id === "tecnicos" && "🔧"}
-                    {item.id === "solicitudes" && "📋"}
-                    {item.id === "visitas" && "📐"}
+                    <NavigationIcon aria-hidden="true" size={20} strokeWidth={2} />
                   </span>
                   <div className="nav-label-container">
                     <span className="nav-label">{item.label}</span>
@@ -147,7 +164,9 @@ export default function AppShell() {
             {user && (
               <div className="sidebar-user-info">
                 <div className="user-details">
-                  <span className="user-icon">👤</span>
+                  <span className="user-icon">
+                    <CircleUserRound aria-hidden="true" size={20} strokeWidth={2} />
+                  </span>
                   <div className="user-text">
                     <span className="user-name">{user.nombre}</span>
                     <span className="user-role">{user.rol}</span>

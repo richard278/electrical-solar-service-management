@@ -1,114 +1,153 @@
 # Contrato API REST
 
-Este documento define el contrato público de la API REST para el proyecto **Electrical Solar Service Management / EcoInstalacion**. Las interfaces aquí expuestas sirven de base para la integración con clientes API-first y para la futura migración hacia un frontend moderno con **React + Vite**.
+Este documento describe el contrato HTTP vigente de la API de **EcoInstalacion / Electrical Solar Service Management**, consumida actualmente por el frontend React + Vite y preparada para futuros clientes móviles.
 
-## 1. Propósito del documento
+## 1. Base URL local
 
-Establecer una referencia clara y estructurada de los endpoints disponibles en el backend de ASP.NET Core, detallando sus rutas, métodos HTTP, códigos de estado y contratos de datos (DTOs).
+```text
+http://localhost:5240
+```
 
-## 2. Base URL (Entorno Local)
+## 2. Convenciones generales
 
-* **URL base**: `http://localhost:5240`
+- Las solicitudes y respuestas utilizan `application/json`.
+- Las propiedades JSON se serializan en `camelCase`.
+- La API publica DTOs específicos y no expone directamente las entidades de persistencia.
+- Salvo `POST /api/auth/login`, los endpoints requieren un access token JWT válido.
+- El token se envía mediante `Authorization: Bearer <token>`.
+- Los controladores API utilizan `[IgnoreAntiforgeryToken]` porque la autenticación REST se basa en JWT Bearer y no en la cookie MVC.
 
-## 3. Convenciones Generales
+## 3. Políticas de acceso
 
-* **Formato de datos**: Todas las solicitudes y respuestas utilizan el formato `application/json`.
-* **Casing**: Se utiliza `camelCase` para los nombres de propiedad en los payloads JSON de respuesta y solicitud (configuración predeterminada de serialización en ASP.NET Core).
-* **Transferencia de Datos (DTOs)**: No se exponen entidades de persistencia (`Entity`) directamente como respuesta pública de la API. Se emplean objetos de transferencia de datos separados por cada operación (`ListDto`, `DetailDto`, `CreateDto`, `UpdateDto`).
-* **Códigos de Estado HTTP**: Se utilizan de manera semántica para indicar el éxito o tipo de fallo de la operación.
-* **Seguridad y Antiforgery**: Los controladores de la API REST emplean el atributo `[IgnoreAntiforgeryToken]` para facilitar el consumo externo y del futuro SPA, delegando la seguridad de sesión al esquema que corresponda.
+| Política | Esquema | Roles admitidos |
+| :--- | :--- | :--- |
+| `ApiAuthenticated` | JWT Bearer | `Administrador`, `Técnico` |
+| `ApiAdminOnly` | JWT Bearer | `Administrador` |
 
----
+Una solicitud sin token válido obtiene `401 Unauthorized`. Un usuario autenticado cuyo rol no cumple la política obtiene `403 Forbidden`.
 
-## 4. Módulos Disponibles y Endpoints
+## 4. Autenticación
 
-### 4.1 Clientes (`api/clientes`)
+### Login
 
-Módulo encargado de la gestión de clientes residenciales y comerciales.
-
-| Método | Endpoint | Descripción | Payload Entrada | Payload Respuesta |
+| Método | Endpoint | Acceso | Entrada | Respuesta |
 | :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/clientes` | Obtiene la lista de todos los clientes. | Ninguno | `List<ClienteListDto>` |
-| **GET** | `/api/clientes/{id}` | Obtiene el detalle de un cliente específico. | Ninguno | `ClienteDetailDto` (o `404`) |
-| **POST** | `/api/clientes` | Registra un nuevo cliente. | `ClienteCreateDto` | `ClienteDetailDto` |
-| **PUT** | `/api/clientes/{id}` | Actualiza un cliente existente. | `ClienteUpdateDto` | `ClienteDetailDto` |
-| **DELETE** | `/api/clientes/{id}` | Desactiva o elimina un cliente. | Ninguno | `204 No Content` |
+| **POST** | `/api/auth/login` | Anónimo | `AuthLoginRequestDto` | `AuthLoginResponseDto` |
 
-### 4.2 Técnicos (`api/tecnicos`)
+Payload de entrada:
 
-Módulo para administrar al personal técnico de instalaciones y mantenimiento.
+```json
+{
+  "correo": "usuario@ejemplo.com",
+  "clave": "contraseña"
+}
+```
 
-| Método | Endpoint | Descripción | Payload Entrada | Payload Respuesta |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/tecnicos` | Obtiene el listado de técnicos. | Ninguno | `List<TecnicoListDto>` |
-| **GET** | `/api/tecnicos/{id}` | Obtiene el detalle de un técnico. | Ninguno | `TecnicoDetailDto` (o `404`) |
-| **POST** | `/api/tecnicos` | Registra un nuevo técnico. | `TecnicoCreateDto` | `TecnicoDetailDto` |
-| **PUT** | `/api/tecnicos/{id}` | Actualiza un técnico existente. | `TecnicoUpdateDto` | `TecnicoDetailDto` |
-| **DELETE** | `/api/tecnicos/{id}` | Elimina un técnico del sistema. | Ninguno | `204 No Content` |
+Respuesta exitosa:
 
-### 4.3 Roles (`api/roles`)
+```json
+{
+  "accessToken": "<jwt>",
+  "tokenType": "Bearer",
+  "expiresAtUtc": "2026-07-21T20:00:00Z",
+  "user": {
+    "id": 1,
+    "nombre": "Usuario",
+    "rol": "Administrador"
+  }
+}
+```
 
-Gestión de los roles y permisos del sistema.
+El login retorna `401` para credenciales incorrectas y `403` si el usuario, su rol o el rol asignado no están habilitados para la aplicación.
 
-| Método | Endpoint | Descripción | Payload Entrada | Payload Respuesta |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/roles` | Obtiene la lista de roles registrados. | Ninguno | `List<RolListDto>` |
-| **GET** | `/api/roles/{id}` | Obtiene el detalle de un rol específico. | Ninguno | `RolDetailDto` (o `404`) |
-| **POST** | `/api/roles` | Registra un nuevo rol administrativo o técnico. | `RolCreateDto` | `RolDetailDto` |
-| **PUT** | `/api/roles/{id}` | Edita la descripción u otros campos de un rol. | `RolUpdateDto` | `RolDetailDto` |
-| **PATCH**| `/api/roles/{id}/estado` | Activa o desactiva un rol mediante query params. | Query: `?esActivo=true\|false` | `RolDetailDto` |
-| **DELETE**| `/api/roles/{id}` | Elimina un rol del sistema. | Ninguno | `204 No Content` |
+## 5. Endpoints por módulo
 
-### 4.4 Solicitudes de Instalación (`api/solicitudes`)
+### 5.1 Clientes (`/api/clientes`)
 
-Módulo para administrar las solicitudes de instalaciones eléctricas o solares.
+| Método | Endpoint | Descripción | Acceso |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/clientes` | Lista clientes activos. | Administrador, Técnico |
+| **GET** | `/api/clientes/administracion?estado=activos\|inactivos\|todos` | Lista clientes según estado. | Administrador |
+| **GET** | `/api/clientes/{id}` | Obtiene el detalle. Un Técnico recibe `404` ante un cliente inactivo. | Administrador, Técnico |
+| **POST** | `/api/clientes` | Crea un cliente activo. | Administrador, Técnico |
+| **PUT** | `/api/clientes/{id}` | Actualiza un cliente. | Administrador |
+| **DELETE** | `/api/clientes/{id}` | Elimina o desactiva según las reglas de negocio. | Administrador |
 
-| Método | Endpoint | Descripción | Payload Entrada | Payload Respuesta |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/solicitudes` | Obtiene la lista general de solicitudes. | Ninguno | `List<SolicitudListDto>` |
-| **GET** | `/api/solicitudes/{id}` | Obtiene el detalle completo de una solicitud. | Ninguno | `SolicitudDetailDto` (o `404`) |
-| **POST** | `/api/solicitudes` | Registra una nueva solicitud de instalación. | `SolicitudCreateDto` | `SolicitudDetailDto` |
-| **PUT** | `/api/solicitudes/{id}` | Edita campos y reasigna técnicos en solicitudes. | `SolicitudUpdateDto` | `SolicitudDetailDto` |
-| **DELETE**| `/api/solicitudes/{id}` | Elimina una solicitud del sistema. | Ninguno | `204 No Content` |
+DTOs principales: `ClienteListDto`, `ClienteDetailDto`, `ClienteCreateDto` y `ClienteUpdateDto`.
 
-### 4.5 Visitas Técnicas (`api/visitas-tecnicas`)
+### 5.2 Técnicos (`/api/tecnicos`)
 
-Módulo encargado del control y registro de visitas técnicas de campo para validación de instalaciones.
+| Método | Endpoint | Descripción | Acceso |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/tecnicos` | Lista técnicos. | Administrador, Técnico |
+| **GET** | `/api/tecnicos/{id}` | Obtiene el detalle. | Administrador, Técnico |
+| **POST** | `/api/tecnicos` | Crea un técnico. | Administrador |
+| **PUT** | `/api/tecnicos/{id}` | Actualiza un técnico. | Administrador |
+| **DELETE** | `/api/tecnicos/{id}` | Elimina un técnico si las reglas de negocio lo permiten. | Administrador |
 
-| Método | Endpoint | Descripción | Payload Entrada | Payload Respuesta |
-| :--- | :--- | :--- | :--- | :--- |
-| **GET** | `/api/visitas-tecnicas` | Obtiene la lista general de visitas. | Ninguno | `List<VisitaTecnicaListDto>` |
-| **GET** | `/api/visitas-tecnicas?solicitudId={id}` | Filtra visitas por ID de solicitud. | Query: `solicitudId` | `List<VisitaTecnicaListDto>` |
-| **GET** | `/api/visitas-tecnicas/{id}` | Obtiene el detalle de una visita. | Ninguno | `VisitaTecnicaDetailDto` (o `404`) |
-| **POST** | `/api/visitas-tecnicas` | Crea una nueva visita técnica. | `VisitaTecnicaCreateDto` | `VisitaTecnicaDetailDto` |
-| **PUT** | `/api/visitas-tecnicas/{id}` | Modifica una visita técnica existente. | `VisitaTecnicaUpdateDto` | `VisitaTecnicaDetailDto` |
-| **DELETE**| `/api/visitas-tecnicas/{id}` | Elimina una visita técnica del sistema. | Ninguno | `204 No Content` |
+DTOs principales: `TecnicoListDto`, `TecnicoDetailDto`, `TecnicoCreateDto` y `TecnicoUpdateDto`.
 
----
+### 5.3 Roles (`/api/roles`)
 
-## 5. Códigos de Respuesta HTTP
+Todo el módulo requiere `ApiAdminOnly`.
 
-El sistema de APIs REST implementa el siguiente estándar de respuestas:
+| Método | Endpoint | Descripción |
+| :--- | :--- | :--- |
+| **GET** | `/api/roles?filtro={texto}&soloActivos={bool}` | Lista roles con filtros opcionales. |
+| **GET** | `/api/roles/{id}` | Obtiene el detalle de un rol. |
+| **POST** | `/api/roles` | Crea un rol conforme al catálogo permitido. |
+| **PUT** | `/api/roles/{id}` | Actualiza descripción y estado. |
+| **PATCH** | `/api/roles/{id}/estado?esActivo={bool}` | Activa o desactiva un rol. |
+| **DELETE** | `/api/roles/{id}` | Elimina un rol si las reglas de negocio lo permiten. |
 
-* **`200 OK`**: La solicitud se completó correctamente y devuelve los datos correspondientes en el cuerpo de la respuesta.
-* **`201 Created`**: La solicitud de creación (`POST`) finalizó con éxito. Devuelve la cabecera `Location` apuntando al recurso y el cuerpo con el DTO detallado del objeto creado.
-* **`204 No Content`**: La solicitud de eliminación (`DELETE`) finalizó correctamente, y no se devuelve contenido en el cuerpo.
-* **`400 Bad Request`**: Errores de validación de modelo (`ModelState`), argumentos inválidos u operaciones canceladas por reglas de negocio en la capa `BLL`. Devuelve un objeto JSON detallando el error.
-* **`404 Not Found`**: El recurso especificado mediante ID no existe en el sistema.
+DTOs principales: `RolListDto`, `RolDetailDto`, `RolCreateDto` y `RolUpdateDto`.
 
----
+### 5.4 Solicitudes (`/api/solicitudes`)
 
-## 6. Observaciones de Seguridad y Autenticación
+| Método | Endpoint | Descripción | Acceso |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/solicitudes` | Lista solicitudes. | Administrador, Técnico |
+| **GET** | `/api/solicitudes/{id}` | Obtiene el detalle. | Administrador, Técnico |
+| **POST** | `/api/solicitudes` | Crea una solicitud. | Administrador |
+| **PUT** | `/api/solicitudes/{id}` | Actualiza una solicitud. | Administrador |
+| **DELETE** | `/api/solicitudes/{id}` | Elimina una solicitud si las reglas de negocio lo permiten. | Administrador |
 
-> [!IMPORTANT]
-> - **Autenticación MVC/Razor Intacta**: La seguridad del sistema actual basada en roles y cookies continúa operando de forma aislada para las vistas Razor tradicionales.
-> - **Exposición de APIs**: Las APIs REST actuales se exponen de manera pública e independiente de las cookies del navegador (a través de `[IgnoreAntiforgeryToken]`) para servir de base inicial de integración.
-> - **Estrategia para React + Vite**: En fases posteriores, se diseñará la estrategia de autenticación específica de la API (por ejemplo, JWT, cookies seguras HTTP-Only, o tokens de portador) que proteja estos endpoints de manera unificada para el frontend SPA.
-> - **Usuarios y Roles**: La información sensible de credenciales (`Usuario`) no se expone a nivel de API pública en este sprint para prevenir vulnerabilidades de filtración.
-> - **Diseño de Autenticación Futura**: Los endpoints del contrato están actualmente en modo de integración libre local; la arquitectura y el diseño técnico para protegerlos mediante un flujo seguro de tokens está definido formalmente en el documento [10. Auth API Design](10-auth-api-design.md).
+DTOs principales: `SolicitudListDto`, `SolicitudDetailDto`, `SolicitudCreateDto` y `SolicitudUpdateDto`.
 
----
+### 5.5 Visitas Técnicas (`/api/visitas-tecnicas`)
 
-## 7. Compatibilidad con clientes web y móviles
+| Método | Endpoint | Descripción | Acceso |
+| :--- | :--- | :--- | :--- |
+| **GET** | `/api/visitas-tecnicas` | Lista visitas técnicas. | Administrador, Técnico |
+| **GET** | `/api/visitas-tecnicas?solicitudId={id}` | Filtra visitas por solicitud. | Administrador, Técnico |
+| **GET** | `/api/visitas-tecnicas/{id}` | Obtiene el detalle. | Administrador, Técnico |
+| **POST** | `/api/visitas-tecnicas` | Crea una visita. | Administrador |
+| **PUT** | `/api/visitas-tecnicas/{id}` | Actualiza una visita. | Administrador |
+| **DELETE** | `/api/visitas-tecnicas/{id}` | Elimina una visita si las reglas de negocio lo permiten. | Administrador |
 
-Los contratos REST definidos en esta API están diseñados bajo especificaciones estándar independientes de la plataforma. De esta manera, cualquier cliente que respete la serialización JSON, el uso de DTOs para estructurar payloads, el manejo semántico de códigos de estado HTTP y los futuros esquemas de autenticación centralizada (JWT/Tokens) podrá consumir estos servicios sin cambios en el backend. Esto garantiza la total compatibilidad tanto con el cliente de administración web (React + Vite) como con la aplicación móvil de campo (React Native / Expo).
+DTOs principales: `VisitaTecnicaListDto`, `VisitaTecnicaDetailDto`, `VisitaTecnicaCreateDto` y `VisitaTecnicaUpdateDto`.
+
+## 6. Códigos de respuesta
+
+| Código | Uso |
+| :--- | :--- |
+| `200 OK` | Consulta o actualización exitosa. |
+| `201 Created` | Creación exitosa, con `Location` y DTO de detalle. |
+| `204 No Content` | Eliminación exitosa. |
+| `400 Bad Request` | Validación, argumentos o reglas de negocio incumplidas. |
+| `401 Unauthorized` | Token ausente, inválido o expirado; también credenciales de login incorrectas. |
+| `403 Forbidden` | Usuario autenticado sin el rol requerido o cuenta/rol no habilitado durante el login. |
+| `404 Not Found` | Recurso inexistente o no visible para el rol autenticado. |
+| `500 Internal Server Error` | Fallo inesperado del servidor. |
+
+## 7. Seguridad y convivencia con MVC
+
+- Las vistas MVC/Razor conservan autenticación por cookie.
+- Las políticas API seleccionan explícitamente JWT Bearer, por lo que no aceptan la cookie MVC como sustituto del token.
+- Solo el endpoint de login permite acceso anónimo.
+- Las credenciales y entidades de usuario no se exponen en los módulos operativos.
+- El secreto JWT debe configurarse mediante user-secrets o variables de entorno y no debe persistirse en archivos públicos.
+
+## 8. Compatibilidad de clientes
+
+El contrato utiliza JSON, DTOs y semántica HTTP independiente de la plataforma. El frontend React + Vite ya consume estos endpoints; un cliente React Native / Expo podrá reutilizarlos incorporando el mismo flujo Bearer y un mecanismo de almacenamiento seguro apropiado para el dispositivo.

@@ -1,75 +1,89 @@
 # EcoInstalacion Frontend
 
-Cliente web administrativo para la gestión de servicios técnicos e instalaciones eléctricas residenciales y solares del sistema **EcoInstalacion / Electrical Solar Service Management**.
+SPA administrativa para la gestión de servicios técnicos e instalaciones eléctricas residenciales y solares de **EcoInstalacion / Electrical Solar Service Management**.
 
-## Stack Tecnológico
+El frontend consume la API ASP.NET Core mediante autenticación JWT y presenta capacidades de consulta o gestión según el rol autenticado.
 
-- **Framework**: React 18
-- **Lenguaje**: TypeScript
-- **Herramienta de Compilación**: Vite
+## Stack tecnológico
 
----
+- React 19.
+- TypeScript 6.
+- Vite 8.
+- `fetch` nativo mediante un cliente HTTP centralizado.
+- `lucide-react` para iconografía.
+- Oxlint para análisis estático.
 
-## Comandos de Desarrollo
+## Capacidades actuales
 
-* **Instalación de dependencias**:
-  ```bash
-  npm install
-  ```
-* **Ejecutar en modo de desarrollo**:
-  ```bash
-  npm run dev
-  ```
-* **Compilar para producción**:
-  ```bash
-  npm run build
-  ```
+- Login mediante `POST /api/auth/login`.
+- Access token JWT conservado únicamente en memoria.
+- Inclusión automática de `Authorization: Bearer <token>` en las solicitudes protegidas.
+- Cierre de sesión manual y cierre automático al alcanzar `expiresAtUtc`.
+- Panel con cinco secciones: Inicio, Clientes, Técnicos, Solicitudes y Visitas Técnicas.
+- Operaciones `GET`, `POST`, `PUT` y `DELETE` habilitadas conforme al rol y a las reglas de cada módulo.
+- Estados de carga, error, confirmación y validación en los flujos de gestión.
+- Navegación interna mediante estado de React en `AppShell.tsx`, sin React Router.
 
----
+## Matriz funcional por rol
 
-## Entornos y URLs de Integración
+| Módulo | Administrador | Técnico |
+| :--- | :--- | :--- |
+| Clientes | Consultar activos, inactivos o todos; crear, editar y eliminar | Consultar clientes activos y crear |
+| Técnicos | Consultar, crear, editar y eliminar según reglas de negocio | Consultar |
+| Solicitudes | Consultar, crear, editar y eliminar según reglas de negocio | Consultar |
+| Visitas Técnicas | Consultar, crear, editar, aprobar y eliminar según reglas de negocio | Consultar |
 
-- **URL de desarrollo local**: `http://localhost:5173`
-- **URL esperada del Backend**: `http://localhost:5240`
+La API valida los permisos en el servidor. La interfaz también oculta o deshabilita las acciones que el rol no puede ejecutar.
 
----
+## Requisitos locales
 
-## Sprint 5C — API Client
+- Node.js y npm compatibles con las versiones declaradas en `package.json`.
+- Backend ASP.NET Core en ejecución.
+- Origen del frontend permitido por la política CORS del backend.
 
-- Se consume `GET /api/clientes` de forma asíncrona.
-- Se consume `GET /api/tecnicos` de forma asíncrona.
-- Se utiliza `fetch` nativo para todas las operaciones (sin Axios ni librerías adicionales).
-- Requiere el backend ejecutándose en `http://localhost:5240` (con CORS habilitado).
-- Requiere el frontend ejecutándose en `http://localhost:5173`.
-- No incluye autenticación todavía.
-- No incluye operaciones de escritura (POST, PUT, DELETE) todavía.
+## Configuración
 
----
+La URL base se obtiene de `VITE_API_BASE_URL` y usa `http://localhost:5240` como valor predeterminado.
 
-## Sprint 5D — Operational Dashboard
+Para crear la configuración local:
 
-- Se consume `GET /api/solicitudes` de forma asíncrona.
-- Se consume `GET /api/visitas-tecnicas` de forma asíncrona.
-- Se consume `GET /api/visitas-tecnicas?solicitudId={id}` de forma asíncrona.
-- Se utiliza `fetch` nativo para todas las operaciones (sin Axios ni librerías adicionales).
-- Requiere el backend ejecutándose en `http://localhost:5240` (con CORS habilitado).
-- Requiere el frontend ejecutándose en `http://localhost:5173`.
-- No incluye autenticación todavía.
-- No incluye operaciones de escritura (POST, PUT, DELETE) ni formularios todavía.
+```bash
+cp .env.example .env.local
+```
 
----
+Ejemplo:
 
-## Sprint 5F — React Navigation and Read-Only Entity Panels
+```env
+VITE_API_BASE_URL=http://localhost:5240
+```
 
-- **Navegación interna**: Implementada mediante estado de React (`useState`) en `AppShell.tsx` (sin React Router).
-- **Vistas por entidad**: Paneles de solo lectura detallados para cada entidad principal del negocio.
-- **Endpoints consumidos**:
-  - `GET /api/clientes` (Métricas de clientes y catálogo tabular).
-  - `GET /api/tecnicos` (Métricas de técnicos y personal calificado).
-  - `GET /api/solicitudes` (Métricas de solicitudes y control de estado).
-  - `GET /api/visitas-tecnicas` (Registro detallado e inspecciones aprobadas/pendientes).
-- **Restricciones respetadas**:
-  - No incluye autenticación de usuario (JWT o Cookies).
-  - No incluye operaciones de escritura (POST, PUT, DELETE).
-  - No incluye formularios de entrada.
-  - No se instalaron dependencias ni librerías adicionales.
+## Comandos de desarrollo
+
+```bash
+npm install
+npm run dev
+```
+
+El servidor de Vite utiliza normalmente `http://localhost:5173`.
+
+## Validación
+
+```bash
+npm run lint
+npm run build
+```
+
+## Límites conocidos
+
+- La sesión no se persiste: recargar la página requiere iniciar sesión nuevamente.
+- No existen refresh tokens ni renovación silenciosa de sesión.
+- La navegación por estado vuelve a Inicio al recargar y no ofrece enlaces profundos.
+- No hay paginación ni búsqueda avanzada por nombre, DUI u otros campos.
+- No existe todavía una suite automatizada de pruebas del frontend.
+- El despliegue unificado del SPA y ASP.NET Core continúa pendiente.
+
+Para el contrato y la matriz de seguridad vigentes, consulte:
+
+- [Contrato API REST](../docs/08-api-contract.md)
+- [Diseño de autenticación y autorización API](../docs/10-auth-api-design.md)
+- [Registro de deuda técnica](../docs/11-technical-debt-register.md)

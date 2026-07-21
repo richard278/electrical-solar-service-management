@@ -1,151 +1,170 @@
 # Diseño de Autenticación y Autorización API
 
-Este documento detalla la planificación y el diseño de la seguridad para la API REST del proyecto **EcoInstalacion**, asegurando una transición controlada desde la arquitectura de vistas Razor hacia la arquitectura SPA multi-cliente.
+Este documento describe la seguridad actualmente implementada para la API REST de **EcoInstalacion** y las medidas que continúan pendientes antes de un despliegue productivo.
 
-## 1. Propósito del documento
+## 1. Propósito
 
-Definir de manera formal el esquema de autenticación, autorización, protección de endpoints y el flujo de sesión requerido para que las aplicaciones cliente (React + Vite y futuras apps móviles) interactúen de forma segura con el backend ASP.NET Core, manteniendo al mismo tiempo la convivencia armónica con el sistema heredado.
+Mantener una referencia verificable del login, la emisión y validación del JWT, las políticas por rol y el manejo de sesión del frontend React, preservando la convivencia con la autenticación MVC/Razor.
 
-## 2. Estado Actual de Autenticación
+## 2. Arquitectura vigente
 
-Actualmente coexisten dos enfoques de presentación en el backend:
+| Superficie | Esquema | Estado |
+| :--- | :--- | :--- |
+| MVC/Razor | Cookie de ASP.NET Core | Activo para las vistas heredadas |
+| API REST | JWT Bearer | Activo en Clientes, Técnicos, Roles, Solicitudes y Visitas Técnicas |
+| React + Vite | Access token en memoria | Activo; el token se adjunta mediante el cliente HTTP centralizado |
 
-* **Presentación MVC/Razor (Heredada)**: Emplea autenticación basada en cookies tradicionales (`CookieAuthenticationDefaults.AuthenticationScheme`). Los roles (`Administrador` y `Técnico`) están mapeados y aplicados mediante atributos `[Authorize]` tradicionales en los controladores MVC.
-* **Presentación API REST (Modernización)**: Las APIs de Clientes, Técnicos, Roles, Solicitudes y Visitas Técnicas están expuestas mediante controladores API (`[ApiController]`). Al nivel de clase, se aplica el atributo `[IgnoreAntiforgeryToken]` para facilitar el consumo local asíncrono desde el frontend React (puerto `5173`). No obstante, en esta fase preliminar de integración local, **los endpoints de la API carecen de validación de credenciales y no están protegidos**.
-* **Usuarios/Auth**: Las operaciones sobre usuarios y el proceso de autenticación en sí no han sido expuestos como servicios API públicos en este sprint para proteger la integridad de las credenciales de prueba.
+El esquema predeterminado de la aplicación continúa siendo la cookie MVC. Las políticas de la API declaran explícitamente `JwtBearerDefaults.AuthenticationScheme`, evitando que una cookie MVC autorice por accidente una solicitud REST.
 
----
+Los únicos roles activos para el acceso API son:
 
-## 3. Riesgos Controlados y Declaración de Estado
+- `Administrador`.
+- `Técnico`.
 
-> [!WARNING]
-> Las APIs REST en el estado actual de integración local están diseñadas exclusivamente para desarrollo y pruebas. No deben considerarse bajo ningún escenario como listas para producción.
->
-> Antes de su despliegue a entornos externos o productivos, se debe implementar de forma mandatoria la seguridad JWT o de Cookies HttpOnly según lo estipulado en este diseño.
+## 3. Login API implementado
 
----
+### Endpoint
 
-## 4. Objetivo de Seguridad API-first
-
-La meta principal es proveer un mecanismo de autenticación para servicios REST que cumpla con los siguientes principios:
-
-1. **Desacoplamiento**: El cliente React o móvil no debe requerir redireccionamientos a páginas de login en servidor. La sesión debe orquestarse mediante API REST asíncrona.
-2. **Modularidad**: El servidor debe validar las credenciales y emitir una prueba digital de sesión estructurada y portable.
-3. **Privacidad de datos**: Las contraseñas se transmiten cifradas por canal HTTPS y no se exponen credenciales de base de datos en las respuestas públicas de la API.
-
----
-
-## 5. Estrategias de Autenticación API Candidatas
-
-### Opción A: JSON Web Token (JWT) Bearer Authentication (Recomendada)
-Consiste en la emisión de un token firmado digitalmente por el servidor que almacena de manera segura la identidad del usuario y sus claims. El cliente almacena este token en memoria o almacenamiento local y lo adjunta en la cabecera `Authorization: Bearer <Token>` en cada petición.
-
-* **Ventajas**:
-  * Altamente portable y agnóstico al lenguaje (excelente compatibilidad con el futuro cliente móvil React Native / Expo).
-  * Desacoplamiento total de cookies y sesiones de servidor.
-  * Facilita el escalado horizontal del backend.
-* **Desventajas/Riesgos**:
-  * Sensible a ataques XSS (Cross-Site Scripting) si se almacena incorrectamente en el almacenamiento del navegador (`localStorage`).
-  * Requiere lógica adicional en el cliente para gestionar la renovación del token (refresh tokens).
-
-### Opción B: Cookies HTTP-Only SameSite/Secure (Híbrido)
-Reutilizar la infraestructura de autenticación por cookies de ASP.NET Core existente, exponiendo un endpoint de login asíncrono que emita la cookie de sesión cifrada directamente al navegador.
-
-* **Ventajas**:
-  * Inmunidad natural frente a ataques XSS si se configura la cabecera `HttpOnly`.
-  * Integración simple con los flujos de autorización y cookies de Razor existentes.
-* **Desventajas/Riesgos**:
-  * Poca o nula compatibilidad nativa con clientes móviles (los cuales no gestionan cookies de forma automática del mismo modo que un navegador).
-  * Exposición a ataques CSRF (Cross-Site Request Forgery), requiriendo validación rigurosa de Anti-Forgery Tokens.
-
----
-
-## 6. Recomendación y Decisión de Diseño
-
-Para EcoInstalacion se recomienda un enfoque híbrido transicional de **JWT Bearer Token** como la estrategia de autenticación predilecta para la API REST.
-
-### Arquitectura de Tokens Propuesta
-1. **Emisión de Access Token**: JWT de corta duración (ej. 15 minutos) que viaja en memoria en la aplicación React.
-2. **Emisión de Refresh Token**: Almacenado de forma segura en una cookie en el navegador con directivas `HttpOnly`, `Secure` y `SameSite` según el modelo de despliegue:
-   - `SameSite=Lax` o `SameSite=Strict` si frontend y backend comparten el mismo sitio.
-   - `SameSite=None; Secure` si React y la API operan como orígenes cruzados y se usan cookies con credenciales.
-3. **Dispositivos Móviles**: Para el cliente móvil, tanto el Access Token como el Refresh Token pueden almacenarse de manera cifrada mediante el almacenamiento seguro en el dispositivo mediante mecanismos como Expo SecureStore, Keychain o Keystore.
-
----
-
-## 7. Roles Previstos y Modelo de Autorización
-
-El sistema mantendrá el mapeo de roles existente en la base de datos:
-
-* **Administrador (`Administrador`)**: Acceso total al panel web administrativo. Permiso de lectura y escritura en clientes, técnicos, roles, solicitudes y visitas técnicas.
-* **Técnico (`Técnico`)**: Acceso restringido (principalmente desde la app móvil). Permiso de lectura en solicitudes asignadas y lectura/escritura en visitas técnicas.
-
----
-
-## 8. Matriz Inicial de Protección de Endpoints
-
-Una vez implementada la seguridad, los endpoints responderán según la siguiente matriz de políticas:
-
-| Módulo | Endpoint | Método | Requerimiento de Roles |
-| :--- | :--- | :--- | :--- |
-| **Auth** | `/api/auth/login` | POST | Anónimo / Público |
-| | `/api/auth/refresh` | POST | Anónimo / Envía Refresh Token |
-| **Clientes**| `/api/clientes` | GET | `Administrador` |
-| | `/api/clientes/{id}` | GET | `Administrador` |
-| | `/api/clientes` | POST/PUT/DELETE | `Administrador` |
-| **Técnicos**| `/api/tecnicos` | GET | `Administrador` |
-| | `/api/tecnicos/{id}` | GET | `Administrador` |
-| | `/api/tecnicos` | POST/PUT/DELETE | `Administrador` |
-| **Solicitudes**| `/api/solicitudes` | GET | `Administrador`, `Técnico` *(filtrado por asignación)* |
-| | `/api/solicitudes/{id}` | GET | `Administrador`, `Técnico` *(filtrado por asignación)* |
-| | `/api/solicitudes` | POST/PUT/DELETE | `Administrador` |
-| **Visitas** | `/api/visitas-tecnicas` | GET | `Administrador` |
-| | `/api/visitas-tecnicas?solicitudId={id}` | GET | `Administrador`, `Técnico` |
-| | `/api/visitas-tecnicas` | POST/PUT/DELETE | `Administrador`, `Técnico` |
-
----
-
-## 9. Flujo Futuro de Login y Orquestación
-
-```
-React Client                 Kestrel Server (ASP.NET Core)
-    |                                   |
-    |---- 1. POST /api/auth/login ----->|  (Valida credenciales en BLL/BD)
-    |      (correo, clave)              |
-    |                                   |
-    |<--- 2. Retorna JWT (body) --------|  (Genera y firma el JWT)
-    |     y Refresh Token (Cookie)      |
-    |                                   |
-    |---- 3. Petición con Cabecera ---->|  (Valida firma de JWT y Claims)
-    |     Authorization: Bearer <Token> |
-    |                                   |
+```http
+POST /api/auth/login
+Content-Type: application/json
 ```
 
-### Orquestación en el Cliente (React)
-* El Access Token se almacena en memoria de la aplicación (dentro de una variable del estado de React).
-* El componente de enrutamiento del frontend evalúa la presencia del token y los roles para permitir el acceso a las vistas.
-* Si el Access Token expira, el cliente HTTP base realiza automáticamente una llamada pre-intercepción a `/api/auth/refresh` para renovar la sesión en segundo plano.
+Solicitud:
 
----
+```json
+{
+  "correo": "usuario@ejemplo.com",
+  "clave": "contraseña"
+}
+```
 
-## 10. Consideraciones CORS y Seguridad Adicional
+Respuesta `200 OK`:
 
-* **SameSite y Secure**: Las cookies emitidas por el backend destinadas a refresh tokens deben configurarse con las directivas `HttpOnly`, `Secure` y `SameSite` según el modelo de despliegue:
-  - `SameSite=Lax` o `SameSite=Strict` si frontend y backend comparten el mismo sitio.
-  - `SameSite=None; Secure` si React y la API operan como orígenes cruzados y se usan cookies con credenciales.
-* **AllowCredentials**: La política CORS actual `FrontendDevelopment` en `Program.cs` no permite el uso de credenciales (`.AllowCredentials()`). Si se implementa refresh token basado en cookies, la política CORS del backend debe ser actualizada de forma controlada a `.AllowCredentials()` especificando explícitamente los orígenes permitidos.
+```json
+{
+  "accessToken": "<jwt>",
+  "tokenType": "Bearer",
+  "expiresAtUtc": "2026-07-21T20:00:00Z",
+  "user": {
+    "id": 1,
+    "nombre": "Usuario",
+    "rol": "Administrador"
+  }
+}
+```
 
----
+### Validaciones del servidor
 
-## 11. Roadmap de Implementación de Seguridad API
+El endpoint permite acceso anónimo únicamente para recibir credenciales y:
 
-* **Sprint 5F: Diseño e implementación mínima de Auth API**
-  * Creación del endpoint `/api/auth/login` y generación de tokens JWT.
-  * Habilitación del servicio de validación JWT Bearer en el arranque de ASP.NET Core.
-* **Sprint 5G: Protección de rutas en React**
-  * Creación de contextos de seguridad (`AuthContext`) en el frontend.
-  * Componentes de rutas protegidas y manejo de estados de sesión.
-* **Sprint 5H: Navegación de Entidades**
-  * Pantalla de login e integración del flujo completo en la interfaz.
-* **Sprint 5I: Operaciones de escritura protegidas**
-  * Aseguramiento del paso de cabeceras en llamadas REST de escritura.
+1. Valida el modelo de entrada.
+2. Delega la comprobación de correo y clave al servicio de usuarios.
+3. Rechaza credenciales incorrectas con `401 Unauthorized`.
+4. Rechaza con `403 Forbidden` un usuario inactivo, un rol inactivo o una asignación ajena al catálogo canónico.
+5. Emite el JWT y `expiresAtUtc` cuando el usuario está habilitado.
+
+No existe un endpoint de refresh token en el estado actual.
+
+## 4. Flujo de sesión en React
+
+1. `AuthContext` envía las credenciales a `/api/auth/login`.
+2. El access token se conserva en memoria mediante estado y una referencia de React.
+3. `httpClient` obtiene el token e incorpora `Authorization: Bearer <token>` a las solicitudes.
+4. `AppContent` muestra `LoginPage` si no existe una sesión autenticada y `AppShell` cuando la sesión está activa.
+5. Un temporizador compara `expiresAtUtc` con la hora actual y cierra la sesión al vencer el token.
+6. El usuario puede cerrar la sesión manualmente desde el panel.
+
+Este diseño evita persistir el token en `localStorage` o `sessionStorage`. Como consecuencia deliberada, recargar la página elimina la sesión y exige un nuevo login.
+
+## 5. Políticas de autorización
+
+| Política | Requisito |
+| :--- | :--- |
+| `ApiAuthenticated` | JWT válido y rol `Administrador` o `Técnico` |
+| `ApiAdminOnly` | JWT válido y rol `Administrador` |
+
+La protección se aplica en el servidor. Las utilidades de roles del frontend reflejan la misma matriz para mostrar solo las acciones permitidas, pero no sustituyen la autorización de la API.
+
+## 6. Matriz vigente de endpoints
+
+| Módulo | Operación | Administrador | Técnico |
+| :--- | :--- | :---: | :---: |
+| Auth | `POST /api/auth/login` | Anónimo | Anónimo |
+| Clientes | `GET /api/clientes` | Sí | Sí |
+| Clientes | `GET /api/clientes/administracion` | Sí | No |
+| Clientes | `GET /api/clientes/{id}` | Sí | Sí, solo cliente activo |
+| Clientes | `POST /api/clientes` | Sí | Sí |
+| Clientes | `PUT`, `DELETE /api/clientes/{id}` | Sí | No |
+| Técnicos | `GET` listado y detalle | Sí | Sí |
+| Técnicos | `POST`, `PUT`, `DELETE` | Sí | No |
+| Roles | Todas las operaciones | Sí | No |
+| Solicitudes | `GET` listado y detalle | Sí | Sí |
+| Solicitudes | `POST`, `PUT`, `DELETE` | Sí | No |
+| Visitas Técnicas | `GET` listado, filtro y detalle | Sí | Sí |
+| Visitas Técnicas | `POST`, `PUT`, `DELETE` | Sí | No |
+
+La excepción de negocio vigente permite que el rol `Técnico` cree clientes, pero no los edite ni elimine. En los demás módulos operativos sus permisos actuales son de consulta.
+
+La autorización presente trabaja a nivel de endpoint. Salvo la ocultación de clientes inactivos para el rol Técnico, todavía no existe filtrado de registros por técnico asignado.
+
+## 7. Validación y configuración del JWT
+
+La configuración de JWT valida:
+
+- Emisor.
+- Audiencia.
+- Tiempo de vida.
+- Firma y clave de firma.
+
+La clave debe tener al menos 32 caracteres y se obtiene de `Jwt__SecretKey` o de user-secrets. Los archivos públicos solo deben contener marcadores seguros.
+
+`RequireHttpsMetadata` permanece deshabilitado para el entorno local y la redirección HTTPS no está activa en la configuración actual. Esto es aceptable únicamente para desarrollo local controlado; un despliegue externo debe habilitar HTTPS de extremo a extremo.
+
+## 8. CORS y antiforgery
+
+La política CORS local admite explícitamente:
+
+- `http://localhost:5173`.
+- `https://localhost:5173`.
+
+Permite encabezados y métodos HTTP, pero no habilita credenciales de cookies entre orígenes. Esto es coherente con el access token enviado en el encabezado Bearer.
+
+Los controladores API usan `[IgnoreAntiforgeryToken]`. Esta decisión no vuelve públicos los endpoints: la protección efectiva corresponde a JWT y a las políticas de autorización. Los formularios MVC continúan bajo el esquema antiforgery y la autenticación por cookie.
+
+## 9. Respuestas de seguridad esperadas
+
+| Código | Significado |
+| :--- | :--- |
+| `400 Bad Request` | Payload inválido o regla de negocio incumplida. |
+| `401 Unauthorized` | Credenciales incorrectas en login o token ausente, inválido o expirado. |
+| `403 Forbidden` | Cuenta o rol inactivo durante el login, o rol sin permiso para el endpoint. |
+| `404 Not Found` | Recurso inexistente o cliente inactivo no visible para un Técnico. |
+
+## 10. Estado de implementación
+
+| Capacidad | Estado |
+| :--- | :--- |
+| Login API y emisión JWT | Implementado |
+| Validación JWT Bearer | Implementado |
+| Políticas `ApiAuthenticated` y `ApiAdminOnly` | Implementado |
+| Contexto de autenticación React | Implementado |
+| Token en memoria y cabecera Bearer | Implementado |
+| Controles de UI por rol | Implementado |
+| Operaciones protegidas de Clientes, Técnicos, Solicitudes y Visitas | Implementado |
+| Refresh token y renovación silenciosa | Pendiente |
+| Revocación de tokens y cierre global de sesiones | Pendiente |
+| HTTPS productivo | Pendiente |
+| Filtrado de datos por técnico asignado | Pendiente |
+| Pruebas automáticas de autenticación y autorización | Pendiente |
+
+## 11. Criterios antes de producción
+
+Antes de publicar la API fuera de un entorno local se debe:
+
+1. Servir frontend y backend exclusivamente mediante HTTPS.
+2. Diseñar refresh tokens con rotación, expiración, revocación y almacenamiento seguro.
+3. Centralizar el tratamiento de sesiones expiradas y respuestas `401` en el cliente.
+4. Incorporar pruebas automáticas para credenciales, roles, expiración y matriz de permisos.
+5. Definir el alcance de datos visible para cada Técnico.
+6. Revisar CORS, secretos, telemetría y manejo global de errores según el entorno de despliegue.
