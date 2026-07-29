@@ -47,6 +47,25 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
             return Ok(result);
         }
 
+        [HttpGet("paginadas")]
+        [ProducesResponseType(typeof(EcoInstalacion.Entity.Pagination.PagedResultDto<VisitaTecnicaListDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<EcoInstalacion.Entity.Pagination.PagedResultDto<VisitaTecnicaListDto>>> GetVisitasPaginadas(
+            [FromQuery] EcoInstalacion.Entity.Pagination.VisitaTecnicaQueryDto query)
+        {
+            query ??= new EcoInstalacion.Entity.Pagination.VisitaTecnicaQueryDto();
+            var result = await _visitaService.ListaPaginada(query);
+
+            var mappedResult = new EcoInstalacion.Entity.Pagination.PagedResultDto<VisitaTecnicaListDto>
+            {
+                Items = result.Items.Select(ToListDto).ToList(),
+                TotalCount = result.TotalCount,
+                PageNumber = result.PageNumber,
+                PageSize = result.PageSize
+            };
+
+            return Ok(mappedResult);
+        }
+
         [HttpGet("{id:int}")]
         [ProducesResponseType(typeof(VisitaTecnicaDetailDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

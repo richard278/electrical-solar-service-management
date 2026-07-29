@@ -69,5 +69,95 @@ namespace EcoInstalacion.DAL.Implementacion
             await _dbContext.SaveChangesAsync();
             return true;
         }
+
+        public async Task<EcoInstalacion.Entity.Pagination.PagedResultDto<VisitasTecnica>> ListaPaginadaSinTracking(
+            EcoInstalacion.Entity.Pagination.VisitaTecnicaQueryDto query)
+        {
+            var iquery = _dbContext.Set<VisitasTecnica>()
+                .AsNoTracking()
+                .Include(v => v.Solicitud)
+                    .ThenInclude(s => s.Cliente)
+                .Include(v => v.Solicitud)
+                    .ThenInclude(s => s.TecnicoAsignado)
+                .AsQueryable();
+
+            if (query.aprobado.HasValue)
+            {
+                var isAprobado = query.aprobado.Value;
+                iquery = isAprobado
+                    ? iquery.Where(v => v.Aprobado == true)
+                    : iquery.Where(v => v.Aprobado == false || v.Aprobado == null);
+            }
+
+            if (query.solicitudId.HasValue && query.solicitudId.Value > 0)
+            {
+                iquery = iquery.Where(v => v.SolicitudId == query.solicitudId.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.estadoSolicitud) &&
+                !query.estadoSolicitud.Trim().Equals("Todas", StringComparison.OrdinalIgnoreCase))
+            {
+                var est = query.estadoSolicitud.Trim();
+                iquery = iquery.Where(v => v.Solicitud != null && v.Solicitud.Estado != null && EF.Functions.Like(v.Solicitud.Estado, est));
+            }
+
+            if (query.fechaDesde.HasValue)
+            {
+                iquery = iquery.Where(v => v.FechaVisita >= query.fechaDesde.Value);
+            }
+
+            if (query.fechaHasta.HasValue)
+            {
+                iquery = iquery.Where(v => v.FechaVisita <= query.fechaHasta.Value);
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.q))
+            {
+                // Nota de precisión: EF.Functions.Like() produce un LIKE nativo en SQL Server.
+                // La sensibilidad a mayúsculas/minúsculas depende de la collation configurada en SQL Server, base de datos o columna.
+                var q = query.q.Trim();
+                iquery = iquery.Where(v =>
+                    (!string.IsNullOrEmpty(v.Observaciones) && EF.Functions.Like(v.Observaciones, $"%{q}%")) ||
+                    (v.Solicitud != null && !string.IsNullOrEmpty(v.Solicitud.TipoInstalacion) && EF.Functions.Like(v.Solicitud.TipoInstalacion, $"%{q}%")) ||
+                    (v.Solicitud != null && !string.IsNullOrEmpty(v.Solicitud.Estado) && EF.Functions.Like(v.Solicitud.Estado, $"%{q}%")) ||
+                    (v.Solicitud != null && v.Solicitud.Cliente != null && EF.Functions.Like(v.Solicitud.Cliente.NombreCompleto, $"%{q}%")) ||
+                    (v.Solicitud != null && v.Solicitud.TecnicoAsignado != null && EF.Functions.Like(v.Solicitud.TecnicoAsignado.Nombre, $"%{q}%")));
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.clienteNombre))
+            {
+                var cNom = query.clienteNombre.Trim();
+                iquery = iquery.Where(v => v.Solicitud != null && v.Solicitud.Cliente != null && EF.Functions.Like(v.Solicitud.Cliente.NombreCompleto, $"%{cNom}%"));
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.tecnicoNombre))
+            {
+                var tNom = query.tecnicoNombre.Trim();
+                iquery = iquery.Where(v => v.Solicitud != null && v.Solicitud.TecnicoAsignado != null && EF.Functions.Like(v.Solicitud.TecnicoAsignado.Nombre, $"%{tNom}%"));
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.tipoInstalacion))
+            {
+                var tipo = query.tipoInstalacion.Trim();
+                iquery = iquery.Where(v => v.Solicitud != null && !string.IsNullOrEmpty(v.Solicitud.TipoInstalacion) && EF.Functions.Like(v.Solicitud.TipoInstalacion, $"%{tipo}%"));
+            }
+
+            var total = await iquery.CountAsync();
+
+            var items = await iquery
+                .OrderByDescending(v => v.FechaVisita)
+                .ThenByDescending(v => v.Id)
+                .Skip((query.PageNumber - 1) * query.PageSize)
+                .Take(query.PageSize)
+                .ToListAsync();
+
+            return new EcoInstalacion.Entity.Pagination.PagedResultDto<VisitasTecnica>
+            {
+                Items = items,
+                TotalCount = total,
+                PageNumber = query.PageNumber,
+                PageSize = query.PageSize
+            };
+        }
     }
 }

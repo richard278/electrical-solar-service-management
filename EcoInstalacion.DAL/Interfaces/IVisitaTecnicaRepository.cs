@@ -10,5 +10,7 @@ namespace EcoInstalacion.DAL.Interfaces
         Task<bool> EditarConTransicionAprobacion(
             VisitasTecnica visita,
             bool actualizarSolicitudAEnProceso);
+        Task<EcoInstalacion.Entity.Pagination.PagedResultDto<VisitasTecnica>> ListaPaginadaSinTracking(
+            EcoInstalacion.Entity.Pagination.VisitaTecnicaQueryDto query);
     }
 }

@@ -108,6 +108,15 @@ namespace EcoInstalacion.BLL.Implementacion
             return await _visitaTecnicaRepository.ObtenerPorIdConSolicitudCliente(id);
         }
 
+        public async Task<EcoInstalacion.Entity.Pagination.PagedResultDto<VisitasTecnica>> ListaPaginada(
+            EcoInstalacion.Entity.Pagination.VisitaTecnicaQueryDto query)
+        {
+            if (query is null)
+                throw new ArgumentNullException(nameof(query));
+
+            return await _visitaTecnicaRepository.ListaPaginadaSinTracking(query);
+        }
+
         private static void NormalizarYValidarCampos(VisitasTecnica entidad)
         {
             if (entidad.SolicitudId <= 0)
