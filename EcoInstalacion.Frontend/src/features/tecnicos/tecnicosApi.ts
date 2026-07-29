@@ -3,8 +3,33 @@ import type {
   TecnicoListItem,
   TecnicoDetail,
   TecnicoCreatePayload,
-  TecnicoUpdatePayload
+  TecnicoUpdatePayload,
+  PagedResult,
+  TecnicoPagedQuery
 } from './types';
+
+export function getTecnicosPaginados(
+  query: TecnicoPagedQuery
+): Promise<PagedResult<TecnicoListItem>> {
+  const params = new URLSearchParams();
+  if (query.q && query.q.trim() !== '') {
+    params.append('q', query.q.trim());
+  }
+  if (query.estado) {
+    params.append('estado', query.estado);
+  }
+  if (query.pageNumber !== undefined && query.pageNumber !== null) {
+    params.append('pageNumber', query.pageNumber.toString());
+  }
+  if (query.pageSize !== undefined && query.pageSize !== null) {
+    params.append('pageSize', query.pageSize.toString());
+  }
+
+  const queryString = params.toString();
+  const url = `api/tecnicos/paginados${queryString ? `?${queryString}` : ''}`;
+
+  return request<PagedResult<TecnicoListItem>>(url);
+}
 
 export function getTecnicos(): Promise<TecnicoListItem[]> {
   return request<TecnicoListItem[]>('api/tecnicos');

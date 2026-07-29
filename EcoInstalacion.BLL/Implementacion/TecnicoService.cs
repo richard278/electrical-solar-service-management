@@ -76,5 +76,11 @@ namespace EcoInstalacion.BLL.Implementacion
         {
             return await _tecnicoRepository.ObtenerPorIdSinTracking(id);
         }
+
+        public async Task<EcoInstalacion.Entity.Pagination.PagedResultDto<Tecnico>> ListaPaginada(EcoInstalacion.Entity.Pagination.TecnicoQueryDto query)
+        {
+            if (query is null) throw new ArgumentNullException(nameof(query));
+            return await _tecnicoRepository.ListaPaginadaSinTracking(query);
+        }
     }
 }

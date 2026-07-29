@@ -2,9 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   AlertTriangle,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
+  Filter,
   Pencil,
   Plus,
   RefreshCw,
+  Search,
   Trash2,
   Wrench
 } from 'lucide-react';
@@ -18,13 +22,15 @@ import {
   createTecnico,
   deleteTecnico,
   getTecnicoById,
-  getTecnicos,
+  getTecnicosPaginados,
   updateTecnico
 } from '../features/tecnicos/tecnicosApi';
 import type {
   TecnicoCreatePayload,
   TecnicoDetail,
+  TecnicoEstadoFiltro,
   TecnicoListItem,
+  TecnicoPagedQuery,
   TecnicoUpdatePayload
 } from '../features/tecnicos/types';
 import { TecnicoFormModal } from '../features/tecnicos/components/TecnicoFormModal';
@@ -44,6 +50,16 @@ export default function TecnicosPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [opError, setOpError] = useState<string | null>(null);
 
+  // Pagination & Filter state
+  const [q, setQ] = useState<string>('');
+  const [filtro, setFiltro] = useState<TecnicoEstadoFiltro>('activos');
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [hasPreviousPage, setHasPreviousPage] = useState<boolean>(false);
+  const [hasNextPage, setHasNextPage] = useState<boolean>(false);
+
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
   const [formMode, setFormMode] = useState<'create' | 'edit'>('create');
   const [selectedTecnicoDetail, setSelectedTecnicoDetail] = useState<TecnicoDetail | null>(null);
@@ -59,16 +75,22 @@ export default function TecnicosPage() {
   const showDeleteBtn = canDeleteTecnico(user);
   const showActionsCol = showEditBtn || showDeleteBtn;
 
-  const fetchTecnicosList = useCallback(async () => {
+  // ─── Fetch Paginado ───────────────────────────────────────────────
+
+  const fetchTecnicosList = useCallback(async (query: TecnicoPagedQuery) => {
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
     setOpError(null);
 
     try {
-      const data = await getTecnicos();
+      const data = await getTecnicosPaginados(query);
       if (requestId !== requestIdRef.current) return;
-      setTecnicos(data);
+      setTecnicos(data.items || []);
+      setTotalCount(data.totalCount || 0);
+      setTotalPages(data.totalPages || 0);
+      setHasPreviousPage(!!data.hasPreviousPage);
+      setHasNextPage(!!data.hasNextPage);
     } catch (fetchError) {
       if (requestId !== requestIdRef.current) return;
 
@@ -91,8 +113,47 @@ export default function TecnicosPage() {
   }, []);
 
   useEffect(() => {
-    void fetchTecnicosList();
-  }, [fetchTecnicosList]);
+    void fetchTecnicosList({
+      q,
+      estado: filtro,
+      pageNumber,
+      pageSize
+    });
+  }, [fetchTecnicosList, q, filtro, pageNumber, pageSize]);
+
+  // ─── Control Handlers ─────────────────────────────────────────────
+
+  const handleSearchChange = (val: string) => {
+    setQ(val);
+    setPageNumber(1);
+    setSuccessMsg(null);
+  };
+
+  const handleFiltroChange = (nuevoFiltro: TecnicoEstadoFiltro) => {
+    setFiltro(nuevoFiltro);
+    setPageNumber(1);
+    setSuccessMsg(null);
+  };
+
+  const handlePageSizeChange = (nuevoSize: number) => {
+    setPageSize(nuevoSize);
+    setPageNumber(1);
+    setSuccessMsg(null);
+  };
+
+  const handlePrevPage = () => {
+    if (hasPreviousPage && pageNumber > 1) {
+      setPageNumber((p) => p - 1);
+      setSuccessMsg(null);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (hasNextPage && pageNumber < totalPages) {
+      setPageNumber((p) => p + 1);
+      setSuccessMsg(null);
+    }
+  };
 
   const handleCloseFormModal = () => {
     detailRequestIdRef.current += 1;
@@ -128,7 +189,7 @@ export default function TecnicosPage() {
 
       if (detailError instanceof HttpError) {
         if (detailError.status === 404) {
-          await fetchTecnicosList();
+          await fetchTecnicosList({ q, estado: filtro, pageNumber, pageSize });
           setOpError(`El técnico "${tecnico.nombre || `#${tecnico.id}`}" ya no existe.`);
         } else if (detailError.status === 403) {
           setOpError('Acceso Denegado: No posees permisos para obtener el detalle del técnico.');
@@ -153,8 +214,9 @@ export default function TecnicosPage() {
     if (formMode === 'create') {
       await createTecnico(payload as TecnicoCreatePayload);
       setIsFormOpen(false);
-      await fetchTecnicosList();
+      setPageNumber(1);
       setSuccessMsg('Técnico creado correctamente.');
+      void fetchTecnicosList({ q: '', estado: filtro, pageNumber: 1, pageSize });
       return;
     }
 
@@ -163,11 +225,11 @@ export default function TecnicosPage() {
     try {
       await updateTecnico(selectedTecnicoDetail.id, payload as TecnicoUpdatePayload);
       setIsFormOpen(false);
-      await fetchTecnicosList();
+      void fetchTecnicosList({ q, estado: filtro, pageNumber, pageSize });
       setSuccessMsg('Técnico actualizado correctamente.');
     } catch (saveError) {
       if (saveError instanceof HttpError && saveError.status === 404) {
-        await fetchTecnicosList();
+        await fetchTecnicosList({ q, estado: filtro, pageNumber, pageSize });
       }
       throw saveError;
     }
@@ -192,7 +254,12 @@ export default function TecnicosPage() {
       const nombre = tecnicoToDelete.nombre || `#${tecnicoToDelete.id}`;
       setIsDeleteOpen(false);
       setTecnicoToDelete(null);
-      await fetchTecnicosList();
+
+      if (tecnicos.length === 1 && pageNumber > 1) {
+        setPageNumber((p) => p - 1);
+      } else {
+        void fetchTecnicosList({ q, estado: filtro, pageNumber, pageSize });
+      }
       setSuccessMsg(`Técnico "${nombre}" eliminado correctamente.`);
     } catch (deleteFailure) {
       if (deleteFailure instanceof HttpError) {
@@ -207,7 +274,7 @@ export default function TecnicosPage() {
           setIsDeleteOpen(false);
           setTecnicoToDelete(null);
           setDeleteError(null);
-          await fetchTecnicosList();
+          await fetchTecnicosList({ q, estado: filtro, pageNumber, pageSize });
           setOpError('El técnico ya no existe. Se actualizó el listado.');
         } else if (deleteFailure.status === 401) {
           setDeleteError(deleteFailure.message || 'Sesión no autorizada o expirada.');
@@ -224,6 +291,12 @@ export default function TecnicosPage() {
     }
   };
 
+  const filtroLabel: Record<TecnicoEstadoFiltro, string> = {
+    activos: 'Activos',
+    inactivos: 'Inactivos',
+    todos: 'Todos'
+  };
+
   return (
     <div className="entity-panel">
       <div className="preview-header">
@@ -234,7 +307,7 @@ export default function TecnicosPage() {
           </h2>
           <div className="mutation-header-actions">
             <span className="count-tag" style={{ fontSize: '14px', padding: '6px 12px' }}>
-              Total: {tecnicos.length}
+              Total: {totalCount}
             </span>
             {showCreateBtn && (
               <button
@@ -251,6 +324,37 @@ export default function TecnicosPage() {
         <p className="preview-mode-tag text-teal" style={{ marginTop: '16px' }}>
           <strong>Gestión de Técnicos:</strong> Consulta y administración del personal disponible para solicitudes de instalación.
         </p>
+      </div>
+
+      {/* Control Bar: Búsqueda por texto y filtro por estado */}
+      <div className="mutation-filter-bar" role="group" aria-label="Controles de búsqueda y filtrado">
+        <div className="mutation-search-box">
+          <Search size={15} aria-hidden="true" className="mutation-search-icon" />
+          <input
+            type="text"
+            className="mutation-search-input"
+            placeholder="Buscar por nombre, especialidad, correo..."
+            value={q}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <Filter size={15} aria-hidden="true" className="mutation-filter-icon" />
+          <span className="mutation-filter-label">Estado:</span>
+          {(['activos', 'inactivos', 'todos'] as TecnicoEstadoFiltro[]).map((f) => (
+            <button
+              key={f}
+              type="button"
+              className={`mutation-filter-btn ${filtro === f ? 'mutation-filter-btn--active' : ''}`}
+              onClick={() => handleFiltroChange(f)}
+              aria-pressed={filtro === f}
+              disabled={loading}
+            >
+              {filtroLabel[f]}
+            </button>
+          ))}
+        </div>
       </div>
 
       {successMsg && (
@@ -284,7 +388,7 @@ export default function TecnicosPage() {
           <button
             type="button"
             className="mutation-btn mutation-btn-secondary mutation-btn-sm mutation-retry-margin"
-            onClick={() => void fetchTecnicosList()}
+            onClick={() => void fetchTecnicosList({ q, estado: filtro, pageNumber, pageSize })}
           >
             <RefreshCw size={14} aria-hidden="true" />
             <span>Reintentar</span>
@@ -295,63 +399,117 @@ export default function TecnicosPage() {
       {!loading && !error && (
         <>
           {tecnicos.length === 0 ? (
-            <p className="empty-message">No se encontraron técnicos registrados en el sistema.</p>
+            <p className="empty-message">
+              No se encontraron técnicos
+              {q.trim() ? ` que coincidan con "${q}"` : ''}
+              {filtro !== 'todos' ? ` con estado "${filtroLabel[filtro]}"` : ''}.
+            </p>
           ) : (
-            <div className="table-responsive">
-              <table className="entity-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Nombre Completo</th>
-                    <th>Especialidad</th>
-                    <th>Teléfono</th>
-                    <th>Correo Electrónico</th>
-                    {showActionsCol && <th>Acciones</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {tecnicos.map((tecnico) => (
-                    <tr key={tecnico.id}>
-                      <td className="text-bold">#{tecnico.id}</td>
-                      <td>{tecnico.nombre || 'N/A'}</td>
-                      <td>
-                        <span className="specialty-badge">{tecnico.especialidad || 'General'}</span>
-                      </td>
-                      <td>{tecnico.telefono || 'N/A'}</td>
-                      <td>{tecnico.correo || 'N/A'}</td>
-                      {showActionsCol && (
-                        <td>
-                          <div className="mutation-action-buttons">
-                            {showEditBtn && (
-                              <button
-                                type="button"
-                                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                                onClick={() => void handleOpenEditModal(tecnico)}
-                                title="Editar técnico"
-                              >
-                                <Pencil size={13} aria-hidden="true" />
-                                <span>Editar</span>
-                              </button>
-                            )}
-                            {showDeleteBtn && (
-                              <button
-                                type="button"
-                                className="mutation-btn mutation-btn-danger mutation-btn-sm"
-                                onClick={() => handleOpenDeleteModal(tecnico)}
-                                title="Eliminar técnico"
-                              >
-                                <Trash2 size={13} aria-hidden="true" />
-                                <span>Eliminar</span>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      )}
+            <>
+              <div className="table-responsive">
+                <table className="entity-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Nombre Completo</th>
+                      <th>Especialidad</th>
+                      <th>Teléfono</th>
+                      <th>Correo Electrónico</th>
+                      {showActionsCol && <th>Acciones</th>}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {tecnicos.map((tecnico) => (
+                      <tr key={tecnico.id}>
+                        <td className="text-bold">#{tecnico.id}</td>
+                        <td>{tecnico.nombre || 'N/A'}</td>
+                        <td>
+                          <span className="specialty-badge">{tecnico.especialidad || 'General'}</span>
+                        </td>
+                        <td>{tecnico.telefono || 'N/A'}</td>
+                        <td>{tecnico.correo || 'N/A'}</td>
+                        {showActionsCol && (
+                          <td>
+                            <div className="mutation-action-buttons">
+                              {showEditBtn && (
+                                <button
+                                  type="button"
+                                  className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                                  onClick={() => void handleOpenEditModal(tecnico)}
+                                  title="Editar técnico"
+                                >
+                                  <Pencil size={13} aria-hidden="true" />
+                                  <span>Editar</span>
+                                </button>
+                              )}
+                              {showDeleteBtn && (
+                                <button
+                                  type="button"
+                                  className="mutation-btn mutation-btn-danger mutation-btn-sm"
+                                  onClick={() => handleOpenDeleteModal(tecnico)}
+                                  title="Eliminar técnico"
+                                >
+                                  <Trash2 size={13} aria-hidden="true" />
+                                  <span>Eliminar</span>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Barra de Paginación */}
+              <div className="mutation-pagination-bar">
+                <div className="mutation-pagination-info">
+                  <span>Total encontrados: <strong>{totalCount}</strong></span>
+                  <span>•</span>
+                  <span>Página <strong>{pageNumber}</strong> de <strong>{totalPages || 1}</strong></span>
+                </div>
+
+                <div className="mutation-pagination-actions">
+                  <label htmlFor="pageSizeSelectTecnicos" className="mutation-filter-label" style={{ marginRight: 4 }}>
+                    Mostrar:
+                  </label>
+                  <select
+                    id="pageSizeSelectTecnicos"
+                    className="mutation-select-sm"
+                    value={pageSize}
+                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                    disabled={loading}
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                    onClick={handlePrevPage}
+                    disabled={!hasPreviousPage || pageNumber <= 1 || loading}
+                    title="Página anterior"
+                  >
+                    <ChevronLeft size={14} aria-hidden="true" />
+                    <span>Anterior</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                    onClick={handleNextPage}
+                    disabled={!hasNextPage || pageNumber >= totalPages || loading}
+                    title="Página siguiente"
+                  >
+                    <span>Siguiente</span>
+                    <ChevronRight size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </>
       )}
@@ -402,3 +560,4 @@ export default function TecnicosPage() {
     </div>
   );
 }
+

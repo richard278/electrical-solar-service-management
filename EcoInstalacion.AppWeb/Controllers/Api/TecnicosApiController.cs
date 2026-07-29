@@ -38,6 +38,32 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
             return Ok(result);
         }
 
+        [HttpGet("paginados")]
+        [ProducesResponseType(typeof(EcoInstalacion.Entity.Pagination.PagedResultDto<TecnicoListDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<EcoInstalacion.Entity.Pagination.PagedResultDto<TecnicoListDto>>> GetTecnicosPaginados(
+            [FromQuery] EcoInstalacion.Entity.Pagination.TecnicoQueryDto query)
+        {
+            query ??= new EcoInstalacion.Entity.Pagination.TecnicoQueryDto();
+            var result = await _tecnicoService.ListaPaginada(query);
+
+            var mappedResult = new EcoInstalacion.Entity.Pagination.PagedResultDto<TecnicoListDto>
+            {
+                Items = result.Items.Select(t => new TecnicoListDto
+                {
+                    Id = t.Id,
+                    Nombre = t.Nombre,
+                    Especialidad = t.Especialidad,
+                    Telefono = t.Telefono,
+                    Correo = t.Correo
+                }).ToList(),
+                TotalCount = result.TotalCount,
+                PageNumber = result.PageNumber,
+                PageSize = result.PageSize
+            };
+
+            return Ok(mappedResult);
+        }
+
         [HttpGet("{id:int}")]
         [ProducesResponseType(typeof(TecnicoDetailDto), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status404NotFound)]

@@ -1,4 +1,4 @@
-﻿using EcoInstalacion.Entity;
+using EcoInstalacion.Entity;
 
 namespace EcoInstalacion.BLL.Interfaces
 {
@@ -9,5 +9,6 @@ namespace EcoInstalacion.BLL.Interfaces
         Task<Tecnico> Crear(Tecnico entidad);
         Task<Tecnico> Editar(Tecnico entidad);
         Task<bool> Eliminar(int id);
+        Task<EcoInstalacion.Entity.Pagination.PagedResultDto<Tecnico>> ListaPaginada(EcoInstalacion.Entity.Pagination.TecnicoQueryDto query);
     }
 }
