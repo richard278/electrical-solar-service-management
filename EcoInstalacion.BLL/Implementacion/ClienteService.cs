@@ -97,5 +97,18 @@ namespace EcoInstalacion.BLL.Implementacion
         {
             return await _repoClienteSpecific.ObtenerPorIdSinTracking(id);
         }
+
+        public async Task<EcoInstalacion.Entity.Pagination.PagedResultDto<Cliente>> ListaPaginada(EcoInstalacion.Entity.Pagination.ClienteQueryDto query, bool esAdmin = false)
+        {
+            if (query is null) throw new ArgumentNullException(nameof(query));
+
+            bool? fuerzaActivo = null;
+            if (!esAdmin)
+            {
+                fuerzaActivo = true;
+            }
+
+            return await _repoClienteSpecific.ListaPaginadaSinTracking(query, fuerzaActivo);
+        }
     }
 }

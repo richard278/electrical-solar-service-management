@@ -47,5 +47,72 @@ namespace EcoInstalacion.DAL.Implementacion
                 .AsNoTracking()
                 .FirstOrDefaultAsync(c => c.Id == id);
         }
+
+        public async Task<EcoInstalacion.Entity.Pagination.PagedResultDto<Cliente>> ListaPaginadaSinTracking(EcoInstalacion.Entity.Pagination.ClienteQueryDto query, bool? fuerzaActivo = null)
+        {
+            var iquery = _dbContext.Set<Cliente>().AsNoTracking();
+
+            if (fuerzaActivo.HasValue)
+            {
+                iquery = iquery.Where(c => c.EsActivo == fuerzaActivo.Value);
+            }
+            else if (!string.IsNullOrWhiteSpace(query.estado))
+            {
+                var estadoNorm = query.estado.Trim().ToLowerInvariant();
+                if (estadoNorm == "activos") iquery = iquery.Where(c => c.EsActivo);
+                else if (estadoNorm == "inactivos") iquery = iquery.Where(c => !c.EsActivo);
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.q))
+            {
+                // Nota de precisión: EF.Functions.Like() produce un LIKE nativo en SQL Server.
+                // La sensibilidad a mayúsculas/minúsculas depende de la collation configurada en SQL Server, base de datos o columna.
+                var q = query.q.Trim();
+                iquery = iquery.Where(c => EF.Functions.Like(c.NombreCompleto, $"%{q}%") || 
+                                           EF.Functions.Like(c.Dui, $"%{q}%") || 
+                                           (!string.IsNullOrEmpty(c.Correo) && EF.Functions.Like(c.Correo, $"%{q}%")));
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.nombre))
+            {
+                var n = query.nombre.Trim();
+                iquery = iquery.Where(c => EF.Functions.Like(c.NombreCompleto, $"%{n}%"));
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.correo))
+            {
+                var email = query.correo.Trim();
+                iquery = iquery.Where(c => !string.IsNullOrEmpty(c.Correo) && EF.Functions.Like(c.Correo, $"%{email}%"));
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.dui))
+            {
+                var dui = query.dui.Trim();
+                iquery = iquery.Where(c => EF.Functions.Like(c.Dui, $"%{dui}%"));
+            }
+
+            if (!string.IsNullOrWhiteSpace(query.telefono))
+            {
+                var tel = query.telefono.Trim();
+                iquery = iquery.Where(c => !string.IsNullOrEmpty(c.Telefono) && EF.Functions.Like(c.Telefono, $"%{tel}%"));
+            }
+
+            var total = await iquery.CountAsync();
+
+            var items = await iquery
+                .OrderBy(c => c.NombreCompleto)
+                .ThenBy(c => c.Id)
+                .Skip((query.PageNumber - 1) * query.PageSize)
+                .Take(query.PageSize)
+                .ToListAsync();
+
+            return new EcoInstalacion.Entity.Pagination.PagedResultDto<Cliente>
+            {
+                Items = items,
+                TotalCount = total,
+                PageNumber = query.PageNumber,
+                PageSize = query.PageSize
+            };
+        }
     }
 }

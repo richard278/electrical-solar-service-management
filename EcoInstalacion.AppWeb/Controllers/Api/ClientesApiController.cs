@@ -60,6 +60,31 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         }
 
         // ──────────────────────────────────────────────────────────────────────
+        // GET /api/clientes/paginados — clientes paginados y buscados
+        // ──────────────────────────────────────────────────────────────────────
+        
+        [HttpGet("paginados")]
+        [ProducesResponseType(typeof(EcoInstalacion.Entity.Pagination.PagedResultDto<ClienteListDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<EcoInstalacion.Entity.Pagination.PagedResultDto<ClienteListDto>>> GetClientesPaginados(
+            [FromQuery] EcoInstalacion.Entity.Pagination.ClienteQueryDto query)
+        {
+            query ??= new EcoInstalacion.Entity.Pagination.ClienteQueryDto();
+            
+            bool esAdmin = User.IsInRole(RolesSistema.Administrador);
+            var result = await _clienteService.ListaPaginada(query, esAdmin);
+
+            var mappedResult = new EcoInstalacion.Entity.Pagination.PagedResultDto<ClienteListDto>
+            {
+                Items = result.Items.Select(MapToListDto).ToList(),
+                TotalCount = result.TotalCount,
+                PageNumber = result.PageNumber,
+                PageSize = result.PageSize
+            };
+
+            return Ok(mappedResult);
+        }
+
+        // ──────────────────────────────────────────────────────────────────────
         // GET /api/clientes/administracion?estado=activos|inactivos|todos
         // Solo Administrador (ApiAdminOnly)
         // ──────────────────────────────────────────────────────────────────────
