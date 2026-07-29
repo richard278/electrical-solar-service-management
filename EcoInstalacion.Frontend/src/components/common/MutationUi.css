@@ -629,3 +629,104 @@
     margin-left: 0;
   }
 }
+
+/* =========================================================
+   Search & Pagination Controls
+   ========================================================= */
+.mutation-search-box {
+  position: relative;
+  display: flex;
+  align-items: center;
+  flex: 1;
+  min-width: 220px;
+  max-width: 380px;
+}
+
+.mutation-search-icon {
+  position: absolute;
+  left: 12px;
+  color: #64748b;
+  pointer-events: none;
+}
+
+.mutation-search-input {
+  width: 100%;
+  padding: 7px 12px 7px 36px;
+  font-size: 13px;
+  border-radius: 8px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+
+.mutation-search-input:focus {
+  border-color: #0fa47a;
+  box-shadow: 0 0 0 3px rgba(15, 164, 122, 0.15);
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-search-input {
+    background-color: #0f172a;
+    border-color: #475569;
+    color: #f8fafc;
+  }
+}
+
+.mutation-pagination-bar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid #e2e8f0;
+  flex-wrap: wrap;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-pagination-bar {
+    border-top-color: #334155;
+  }
+}
+
+.mutation-pagination-info {
+  font-size: 13px;
+  color: #64748b;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-pagination-info {
+    color: #94a3b8;
+  }
+}
+
+.mutation-pagination-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mutation-select-sm {
+  padding: 5px 10px;
+  font-size: 13px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background-color: #ffffff;
+  color: #0f172a;
+  outline: none;
+  cursor: pointer;
+}
+
+@media (prefers-color-scheme: dark) {
+  .mutation-select-sm {
+    background-color: #0f172a;
+    border-color: #475569;
+    color: #f8fafc;
+  }
+}
+

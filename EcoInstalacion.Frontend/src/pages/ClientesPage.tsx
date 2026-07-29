@@ -7,7 +7,10 @@ import {
   AlertTriangle,
   CheckCircle,
   Users,
-  Filter
+  Filter,
+  Search,
+  ChevronLeft,
+  ChevronRight
 } from "lucide-react";
 import { useAuth } from "../auth/useAuth";
 import {
@@ -16,8 +19,7 @@ import {
   canDeleteCliente
 } from "../utils/roleUtils";
 import {
-  getClientes,
-  getClientesAdministracion,
+  getClientesPaginados,
   getClienteById,
   createCliente,
   updateCliente,
@@ -28,7 +30,8 @@ import type {
   ClienteDetail,
   ClienteCreatePayload,
   ClienteUpdatePayload,
-  ClienteEstadoFiltro
+  ClienteEstadoFiltro,
+  ClientePagedQuery
 } from "../features/clientes/types";
 import { ClienteFormModal } from "../features/clientes/components/ClienteFormModal";
 import { ConfirmModal } from "../components/common/ConfirmModal";
@@ -51,8 +54,15 @@ export default function ClientesPage() {
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [opError, setOpError] = useState<string | null>(null);
 
-  // Filter state — only meaningful for Admin; Técnico always uses "activos"
+  // Pagination & Filter state
+  const [q, setQ] = useState<string>("");
   const [filtro, setFiltro] = useState<ClienteEstadoFiltro>("activos");
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [hasPreviousPage, setHasPreviousPage] = useState<boolean>(false);
+  const [hasNextPage, setHasNextPage] = useState<boolean>(false);
 
   // Form Modal state
   const [isFormOpen, setIsFormOpen] = useState<boolean>(false);
@@ -71,21 +81,23 @@ export default function ClientesPage() {
   const showDeleteBtn = canDeleteCliente(user);
   const showActionsCol = showEditBtn || showDeleteBtn;
 
-  // ─── Fetch ────────────────────────────────────────────────────────
+  // ─── Fetch Paginado ───────────────────────────────────────────────
 
   const fetchClientesList = useCallback(
-    async (requestedFiltro: ClienteEstadoFiltro) => {
+    async (query: ClientePagedQuery) => {
       const requestId = ++requestIdRef.current;
       setLoading(true);
       setError(null);
       setOpError(null);
       try {
-        const data = isAdmin
-          ? await getClientesAdministracion(requestedFiltro)
-          : await getClientes();
+        const data = await getClientesPaginados(query);
 
         if (requestId !== requestIdRef.current) return;
-        setClientes(data);
+        setClientes(data.items || []);
+        setTotalCount(data.totalCount || 0);
+        setTotalPages(data.totalPages || 0);
+        setHasPreviousPage(!!data.hasPreviousPage);
+        setHasNextPage(!!data.hasNextPage);
       } catch (err) {
         if (requestId !== requestIdRef.current) return;
         if (err instanceof HttpError) {
@@ -107,16 +119,50 @@ export default function ClientesPage() {
         }
       }
     },
-    [isAdmin]
+    []
   );
 
   useEffect(() => {
-    void fetchClientesList(filtro);
-  }, [fetchClientesList, filtro]);
+    void fetchClientesList({
+      q,
+      estado: filtro,
+      pageNumber,
+      pageSize
+    });
+  }, [fetchClientesList, q, filtro, pageNumber, pageSize]);
+
+  // ─── Control Handlers ─────────────────────────────────────────────
+
+  const handleSearchChange = (val: string) => {
+    setQ(val);
+    setPageNumber(1);
+    setSuccessMsg(null);
+  };
 
   const handleFiltroChange = (nuevoFiltro: ClienteEstadoFiltro) => {
     setFiltro(nuevoFiltro);
+    setPageNumber(1);
     setSuccessMsg(null);
+  };
+
+  const handlePageSizeChange = (nuevoSize: number) => {
+    setPageSize(nuevoSize);
+    setPageNumber(1);
+    setSuccessMsg(null);
+  };
+
+  const handlePrevPage = () => {
+    if (hasPreviousPage && pageNumber > 1) {
+      setPageNumber((p) => p - 1);
+      setSuccessMsg(null);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (hasNextPage && pageNumber < totalPages) {
+      setPageNumber((p) => p + 1);
+      setSuccessMsg(null);
+    }
   };
 
   const handleCloseFormModal = () => {
@@ -154,7 +200,7 @@ export default function ClientesPage() {
       setIsFormOpen(false);
       if (err instanceof HttpError) {
         if (err.status === 404) {
-          await fetchClientesList(filtro);
+          await fetchClientesList({ q, estado: filtro, pageNumber, pageSize });
           setOpError(
             `El cliente "${cliente.nombreCompleto || `#${cliente.id}`}" ya no existe en el servidor.`
           );
@@ -183,28 +229,29 @@ export default function ClientesPage() {
     if (formMode === "create") {
       await createCliente(payload as ClienteCreatePayload);
       setIsFormOpen(false);
-      // Clientes nuevos son activos — si el filtro es otro, cambiar a "activos"
+      let targetFiltro = filtro;
       if (isAdmin && filtro !== "activos") {
+        targetFiltro = "activos";
         setFiltro("activos");
-      } else {
-        await fetchClientesList(filtro);
       }
+      setPageNumber(1);
       setSuccessMsg("Cliente creado correctamente. Visualizando clientes activos.");
+      void fetchClientesList({ q: "", estado: targetFiltro, pageNumber: 1, pageSize });
     } else if (selectedClienteDetail) {
       const updPayload = payload as ClienteUpdatePayload;
       try {
         await updateCliente(selectedClienteDetail.id, updPayload);
         setIsFormOpen(false);
-        await fetchClientesList(filtro);
+        void fetchClientesList({ q, estado: filtro, pageNumber, pageSize });
         const statusMsg = updPayload.esActivo
           ? "Cliente actualizado y marcado como Activo."
           : "Cliente actualizado y marcado como Inactivo.";
         setSuccessMsg(statusMsg);
       } catch (err) {
         if (err instanceof HttpError && err.status === 404) {
-          await fetchClientesList(filtro);
+          await fetchClientesList({ q, estado: filtro, pageNumber, pageSize });
         }
-        throw err; // Let ClienteFormModal display the error
+        throw err;
       }
     }
   };
@@ -229,7 +276,13 @@ export default function ClientesPage() {
       const nombre = clienteToDelete.nombreCompleto || `#${clienteToDelete.id}`;
       setIsDeleteOpen(false);
       setClienteToDelete(null);
-      await fetchClientesList(filtro);
+
+      // Si quedaba sólo 1 elemento en una página superior a 1, retrocedemos de página
+      if (clientes.length === 1 && pageNumber > 1) {
+        setPageNumber((p) => p - 1);
+      } else {
+        void fetchClientesList({ q, estado: filtro, pageNumber, pageSize });
+      }
       setSuccessMsg(`Cliente "${nombre}" eliminado correctamente.`);
     } catch (err) {
       if (err instanceof HttpError) {
@@ -244,7 +297,7 @@ export default function ClientesPage() {
           setIsDeleteOpen(false);
           setClienteToDelete(null);
           setDeleteError(null);
-          await fetchClientesList(filtro);
+          await fetchClientesList({ q, estado: filtro, pageNumber, pageSize });
           setOpError("El cliente ya no existe o fue eliminado previamente. Se actualizó el listado.");
         } else if (err.status === 401) {
           setDeleteError(err.message || "Sesión no autorizada o expirada.");
@@ -283,7 +336,7 @@ export default function ClientesPage() {
           </h2>
           <div className="mutation-header-actions">
             <span className="count-tag" style={{ fontSize: "14px", padding: "6px 12px" }}>
-              Total: {clientes.length}
+              Total: {totalCount}
             </span>
             {showCreateBtn && (
               <button
@@ -302,25 +355,38 @@ export default function ClientesPage() {
         </p>
       </div>
 
-      {/* Filtro por estado — solo Administrador */}
-      {isAdmin && (
-        <div className="mutation-filter-bar" role="group" aria-label="Filtrar clientes por estado">
-          <Filter size={15} aria-hidden="true" className="mutation-filter-icon" />
-          <span className="mutation-filter-label">Estado:</span>
-          {(["activos", "inactivos", "todos"] as ClienteEstadoFiltro[]).map((f) => (
-            <button
-              key={f}
-              type="button"
-              className={`mutation-filter-btn ${filtro === f ? "mutation-filter-btn--active" : ""}`}
-              onClick={() => handleFiltroChange(f)}
-              aria-pressed={filtro === f}
-              disabled={loading}
-            >
-              {filtroLabel[f]}
-            </button>
-          ))}
+      {/* Control Bar: Búsqueda por texto y filtro por estado */}
+      <div className="mutation-filter-bar" role="group" aria-label="Controles de búsqueda y filtrado">
+        <div className="mutation-search-box">
+          <Search size={15} aria-hidden="true" className="mutation-search-icon" />
+          <input
+            type="text"
+            className="mutation-search-input"
+            placeholder="Buscar por nombre, DUI, correo..."
+            value={q}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
         </div>
-      )}
+
+        {isAdmin && (
+          <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+            <Filter size={15} aria-hidden="true" className="mutation-filter-icon" />
+            <span className="mutation-filter-label">Estado:</span>
+            {(["activos", "inactivos", "todos"] as ClienteEstadoFiltro[]).map((f) => (
+              <button
+                key={f}
+                type="button"
+                className={`mutation-filter-btn ${filtro === f ? "mutation-filter-btn--active" : ""}`}
+                onClick={() => handleFiltroChange(f)}
+                aria-pressed={filtro === f}
+                disabled={loading}
+              >
+                {filtroLabel[f]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
 
       {/* Success banner */}
       {successMsg && (
@@ -363,7 +429,7 @@ export default function ClientesPage() {
           <button
             type="button"
             className="mutation-btn mutation-btn-secondary mutation-btn-sm mutation-retry-margin"
-            onClick={() => fetchClientesList(filtro)}
+            onClick={() => fetchClientesList({ q, estado: filtro, pageNumber, pageSize })}
           >
             <RefreshCw size={14} aria-hidden="true" />
             <span>Reintentar</span>
@@ -376,72 +442,123 @@ export default function ClientesPage() {
           {clientes.length === 0 ? (
             <p className="empty-message">
               No se encontraron clientes
+              {q.trim() ? ` que coincidan con "${q}"` : ""}
               {isAdmin && filtro !== "todos" ? ` con estado "${filtroLabel[filtro]}"` : ""}.
             </p>
           ) : (
-            <div className="table-responsive">
-              <table className="entity-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Nombre Completo</th>
-                    <th>DUI</th>
-                    <th>Teléfono</th>
-                    <th>Correo</th>
-                    <th>Dirección</th>
-                    <th>Estado</th>
-                    {showActionsCol && <th>Acciones</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {clientes.map((c) => (
-                    <tr key={c.id}>
-                      <td className="text-bold">#{c.id}</td>
-                      <td>{c.nombreCompleto || "N/A"}</td>
-                      <td>{c.dui || "N/A"}</td>
-                      <td>{c.telefono || "N/A"}</td>
-                      <td>{c.correo || "N/A"}</td>
-                      <td>{c.direccion || "N/A"}</td>
-                      <td>
-                        {c.esActivo !== false ? (
-                          <span className="status-pill badge-success">Activo</span>
-                        ) : (
-                          <span className="status-pill badge-secondary">Inactivo</span>
-                        )}
-                      </td>
-                      {showActionsCol && (
-                        <td>
-                          <div className="mutation-action-buttons">
-                            {showEditBtn && (
-                              <button
-                                type="button"
-                                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                                onClick={() => handleOpenEditModal(c)}
-                                title="Editar cliente"
-                              >
-                                <Pencil size={13} aria-hidden="true" />
-                                <span>Editar</span>
-                              </button>
-                            )}
-                            {showDeleteBtn && (
-                              <button
-                                type="button"
-                                className="mutation-btn mutation-btn-danger mutation-btn-sm"
-                                onClick={() => handleOpenDeleteModal(c)}
-                                title="Eliminar cliente"
-                              >
-                                <Trash2 size={13} aria-hidden="true" />
-                                <span>Eliminar</span>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      )}
+            <>
+              <div className="table-responsive">
+                <table className="entity-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Nombre Completo</th>
+                      <th>DUI</th>
+                      <th>Teléfono</th>
+                      <th>Correo</th>
+                      <th>Dirección</th>
+                      <th>Estado</th>
+                      {showActionsCol && <th>Acciones</th>}
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                  </thead>
+                  <tbody>
+                    {clientes.map((c) => (
+                      <tr key={c.id}>
+                        <td className="text-bold">#{c.id}</td>
+                        <td>{c.nombreCompleto || "N/A"}</td>
+                        <td>{c.dui || "N/A"}</td>
+                        <td>{c.telefono || "N/A"}</td>
+                        <td>{c.correo || "N/A"}</td>
+                        <td>{c.direccion || "N/A"}</td>
+                        <td>
+                          {c.esActivo !== false ? (
+                            <span className="status-pill badge-success">Activo</span>
+                          ) : (
+                            <span className="status-pill badge-secondary">Inactivo</span>
+                          )}
+                        </td>
+                        {showActionsCol && (
+                          <td>
+                            <div className="mutation-action-buttons">
+                              {showEditBtn && (
+                                <button
+                                  type="button"
+                                  className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                                  onClick={() => handleOpenEditModal(c)}
+                                  title="Editar cliente"
+                                >
+                                  <Pencil size={13} aria-hidden="true" />
+                                  <span>Editar</span>
+                                </button>
+                              )}
+                              {showDeleteBtn && (
+                                <button
+                                  type="button"
+                                  className="mutation-btn mutation-btn-danger mutation-btn-sm"
+                                  onClick={() => handleOpenDeleteModal(c)}
+                                  title="Eliminar cliente"
+                                >
+                                  <Trash2 size={13} aria-hidden="true" />
+                                  <span>Eliminar</span>
+                                </button>
+                              )}
+                            </div>
+                          </td>
+                        )}
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Barra de Paginación */}
+              <div className="mutation-pagination-bar">
+                <div className="mutation-pagination-info">
+                  <span>Total encontrados: <strong>{totalCount}</strong></span>
+                  <span>•</span>
+                  <span>Página <strong>{pageNumber}</strong> de <strong>{totalPages || 1}</strong></span>
+                </div>
+
+                <div className="mutation-pagination-actions">
+                  <label htmlFor="pageSizeSelect" className="mutation-filter-label" style={{ marginRight: 4 }}>
+                    Mostrar:
+                  </label>
+                  <select
+                    id="pageSizeSelect"
+                    className="mutation-select-sm"
+                    value={pageSize}
+                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                    disabled={loading}
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                    onClick={handlePrevPage}
+                    disabled={!hasPreviousPage || pageNumber <= 1 || loading}
+                    title="Página anterior"
+                  >
+                    <ChevronLeft size={14} aria-hidden="true" />
+                    <span>Anterior</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                    onClick={handleNextPage}
+                    disabled={!hasNextPage || pageNumber >= totalPages || loading}
+                    title="Página siguiente"
+                  >
+                    <span>Siguiente</span>
+                    <ChevronRight size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </>
       )}
@@ -485,3 +602,4 @@ export default function ClientesPage() {
     </div>
   );
 }
+

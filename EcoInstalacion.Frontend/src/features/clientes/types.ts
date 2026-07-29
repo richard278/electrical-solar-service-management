@@ -37,3 +37,21 @@ export interface ClienteUpdatePayload {
 }
 
 export type ClienteEstadoFiltro = 'activos' | 'inactivos' | 'todos';
+
+export interface PagedResult<T> {
+  items: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface ClientePagedQuery {
+  q?: string;
+  estado?: ClienteEstadoFiltro;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
