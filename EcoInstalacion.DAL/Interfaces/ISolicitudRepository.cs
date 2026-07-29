@@ -22,5 +22,11 @@ namespace EcoInstalacion.DAL.Interfaces
         /// Usado exclusivamente para validar integridad referencial antes de eliminar.
         /// </summary>
         Task<SolicitudesInstalacion?> ObtenerConVisitas(int id);
+
+        /// <summary>
+        /// Obtiene una lista paginada de solicitudes con Cliente y TecnicoAsignado cargados, filtrada según la consulta DTO.
+        /// Sin tracking.
+        /// </summary>
+        Task<EcoInstalacion.Entity.Pagination.PagedResultDto<SolicitudesInstalacion>> ListaPaginadaSinTracking(EcoInstalacion.Entity.Pagination.SolicitudQueryDto query);
     }
 }
