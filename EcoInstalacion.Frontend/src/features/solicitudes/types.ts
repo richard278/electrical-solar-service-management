@@ -33,3 +33,28 @@ export interface SolicitudCreatePayload {
 export interface SolicitudUpdatePayload extends SolicitudCreatePayload {
   estado: SolicitudEstado;
 }
+
+export interface PagedResult<T> {
+  items: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface SolicitudPagedQuery {
+  q?: string;
+  estado?: string;
+  clienteId?: number;
+  tecnicoAsignadoId?: number;
+  tipoInstalacion?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  clienteNombre?: string;
+  tecnicoNombre?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
