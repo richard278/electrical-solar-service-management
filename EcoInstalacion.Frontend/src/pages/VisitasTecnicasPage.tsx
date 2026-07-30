@@ -3,10 +3,14 @@ import {
   AlertTriangle,
   CalendarCheck2,
   CheckCircle,
+  ChevronLeft,
+  ChevronRight,
   Eye,
+  Filter,
   Pencil,
   Plus,
   RefreshCw,
+  Search,
   ShieldCheck,
   Trash2
 } from 'lucide-react';
@@ -21,13 +25,14 @@ import {
   createVisitaTecnica,
   deleteVisitaTecnica,
   getVisitaTecnicaById,
-  getVisitasTecnicas,
+  getVisitasTecnicasPaginadas,
   updateVisitaTecnica
 } from '../features/visitasTecnicas/visitasTecnicasApi';
 import type {
   VisitaTecnicaCreatePayload,
   VisitaTecnicaDetail,
   VisitaTecnicaListItem,
+  VisitaTecnicaPagedQuery,
   VisitaTecnicaUpdatePayload
 } from '../features/visitasTecnicas/types';
 import { VisitaTecnicaFormModal } from '../features/visitasTecnicas/components/VisitaTecnicaFormModal';
@@ -95,8 +100,17 @@ export default function VisitasTecnicasPage() {
   const requestIdRef = useRef<number>(0);
   const detailRequestIdRef = useRef<number>(0);
 
+  // Pagination & Filter state
+  const [q, setQ] = useState<string>('');
   const [aprobacionFiltro, setAprobacionFiltro] =
     useState<AprobacionFiltro>('Todas');
+  const [pageNumber, setPageNumber] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(10);
+  const [totalCount, setTotalCount] = useState<number>(0);
+  const [totalPages, setTotalPages] = useState<number>(0);
+  const [hasPreviousPage, setHasPreviousPage] = useState<boolean>(false);
+  const [hasNextPage, setHasNextPage] = useState<boolean>(false);
+
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
   const [opError, setOpError] = useState<string | null>(null);
 
@@ -123,32 +137,32 @@ export default function VisitasTecnicasPage() {
   const showApproveBtn = canApproveVisitaTecnica(user);
   const showDeleteBtn = canDeleteVisitaTecnica(user);
 
-  const visitasFiltradas = useMemo(() => {
-    if (aprobacionFiltro === 'Todas') return visitas;
-    const aprobadas = aprobacionFiltro === 'Aprobadas';
-    return visitas.filter((visita) => visita.aprobado === aprobadas);
-  }, [aprobacionFiltro, visitas]);
-
-  const aprobadas = useMemo(
+  const aprobadasPagina = useMemo(
     () => visitas.filter((visita) => visita.aprobado).length,
     [visitas]
   );
-  const pendientes = visitas.length - aprobadas;
+  const pendientesPagina = visitas.length - aprobadasPagina;
   const inconsistenciasHistoricas = useMemo(
     () => visitas.filter(isHistoricalMismatch).length,
     [visitas]
   );
 
-  const fetchVisitasList = useCallback(async () => {
+  // ─── Fetch Paginado ───────────────────────────────────────────────
+
+  const fetchVisitasList = useCallback(async (query: VisitaTecnicaPagedQuery) => {
     const requestId = ++requestIdRef.current;
     setLoading(true);
     setError(null);
     setOpError(null);
 
     try {
-      const data = await getVisitasTecnicas();
+      const data = await getVisitasTecnicasPaginadas(query);
       if (requestId !== requestIdRef.current) return;
-      setVisitas(data);
+      setVisitas(data.items || []);
+      setTotalCount(data.totalCount || 0);
+      setTotalPages(data.totalPages || 0);
+      setHasPreviousPage(!!data.hasPreviousPage);
+      setHasNextPage(!!data.hasNextPage);
     } catch (fetchError) {
       if (requestId !== requestIdRef.current) return;
 
@@ -170,9 +184,61 @@ export default function VisitasTecnicasPage() {
     }
   }, []);
 
+  const getQueryParams = useCallback((
+    pNum = pageNumber,
+    queryQ = q,
+    filtro = aprobacionFiltro
+  ): VisitaTecnicaPagedQuery => {
+    const aprobadoParam =
+      filtro === 'Todas'
+        ? undefined
+        : filtro === 'Aprobadas';
+
+    return {
+      q: queryQ,
+      aprobado: aprobadoParam,
+      pageNumber: pNum,
+      pageSize
+    };
+  }, [pageNumber, q, aprobacionFiltro, pageSize]);
+
   useEffect(() => {
-    void fetchVisitasList();
-  }, [fetchVisitasList]);
+    void fetchVisitasList(getQueryParams());
+  }, [fetchVisitasList, getQueryParams]);
+
+  // ─── Control Handlers ─────────────────────────────────────────────
+
+  const handleSearchChange = (val: string) => {
+    setQ(val);
+    setPageNumber(1);
+    setSuccessMsg(null);
+  };
+
+  const handleAprobacionFiltroChange = (nuevoFiltro: AprobacionFiltro) => {
+    setAprobacionFiltro(nuevoFiltro);
+    setPageNumber(1);
+    setSuccessMsg(null);
+  };
+
+  const handlePageSizeChange = (nuevoSize: number) => {
+    setPageSize(nuevoSize);
+    setPageNumber(1);
+    setSuccessMsg(null);
+  };
+
+  const handlePrevPage = () => {
+    if (hasPreviousPage && pageNumber > 1) {
+      setPageNumber((p) => p - 1);
+      setSuccessMsg(null);
+    }
+  };
+
+  const handleNextPage = () => {
+    if (hasNextPage && pageNumber < totalPages) {
+      setPageNumber((p) => p + 1);
+      setSuccessMsg(null);
+    }
+  };
 
   const handleCloseFormModal = () => {
     detailRequestIdRef.current += 1;
@@ -211,7 +277,7 @@ export default function VisitasTecnicasPage() {
 
       if (detailError instanceof HttpError) {
         if (detailError.status === 404) {
-          await fetchVisitasList();
+          await fetchVisitasList(getQueryParams());
           setOpError(`La visita #${visita.id} ya no existe.`);
         } else if (detailError.status === 403) {
           setOpError('Acceso Denegado: No posees permisos para consultar esta visita.');
@@ -236,8 +302,9 @@ export default function VisitasTecnicasPage() {
     if (formMode === 'create') {
       await createVisitaTecnica(payload as VisitaTecnicaCreatePayload);
       setIsFormOpen(false);
-      await fetchVisitasList();
+      setPageNumber(1);
       setSuccessMsg('Visita técnica creada correctamente con aprobación pendiente.');
+      void fetchVisitasList(getQueryParams(1, '', aprobacionFiltro));
       return;
     }
 
@@ -249,11 +316,11 @@ export default function VisitasTecnicasPage() {
         payload as VisitaTecnicaUpdatePayload
       );
       setIsFormOpen(false);
-      await fetchVisitasList();
+      void fetchVisitasList(getQueryParams());
       setSuccessMsg(`Visita #${selectedVisitaDetail.id} actualizada correctamente.`);
     } catch (saveError) {
       if (saveError instanceof HttpError && saveError.status === 404) {
-        await fetchVisitasList();
+        await fetchVisitasList(getQueryParams());
       }
       throw saveError;
     }
@@ -281,7 +348,7 @@ export default function VisitasTecnicasPage() {
         const visitaId = visitaActual.id;
         setIsApproveOpen(false);
         setVisitaToApprove(null);
-        await fetchVisitasList();
+        await fetchVisitasList(getQueryParams());
         setSuccessMsg(`La visita #${visitaId} ya se encontraba aprobada.`);
         return;
       }
@@ -294,7 +361,7 @@ export default function VisitasTecnicasPage() {
       const visitaId = visitaActual.id;
       setIsApproveOpen(false);
       setVisitaToApprove(null);
-      await fetchVisitasList();
+      await fetchVisitasList(getQueryParams());
       setSuccessMsg(
         `Visita #${visitaId} aprobada. La solicitud asociada avanzó a En proceso.`
       );
@@ -310,7 +377,7 @@ export default function VisitasTecnicasPage() {
           setIsApproveOpen(false);
           setVisitaToApprove(null);
           setApproveError(null);
-          await fetchVisitasList();
+          await fetchVisitasList(getQueryParams());
           setOpError('La visita ya no existe. Se actualizó el listado.');
         } else if (approveFailure.status === 401) {
           setApproveError(approveFailure.message || 'Sesión no autorizada o expirada.');
@@ -349,7 +416,12 @@ export default function VisitasTecnicasPage() {
       const visitaId = visitaToDelete.id;
       setIsDeleteOpen(false);
       setVisitaToDelete(null);
-      await fetchVisitasList();
+
+      if (visitas.length === 1 && pageNumber > 1) {
+        setPageNumber((p) => p - 1);
+      } else {
+        void fetchVisitasList(getQueryParams());
+      }
       setSuccessMsg(`Visita #${visitaId} eliminada correctamente.`);
     } catch (deleteFailure) {
       if (deleteFailure instanceof HttpError) {
@@ -363,7 +435,7 @@ export default function VisitasTecnicasPage() {
           setIsDeleteOpen(false);
           setVisitaToDelete(null);
           setDeleteError(null);
-          await fetchVisitasList();
+          await fetchVisitasList(getQueryParams());
           setOpError('La visita ya no existe. Se actualizó el listado.');
         } else if (deleteFailure.status === 401) {
           setDeleteError(deleteFailure.message || 'Sesión no autorizada o expirada.');
@@ -396,7 +468,7 @@ export default function VisitasTecnicasPage() {
           </h2>
           <div className="mutation-header-actions">
             <span className="count-tag" style={{ fontSize: '14px', padding: '6px 12px' }}>
-              Total: {visitas.length}
+              Total: {totalCount}
             </span>
             {showCreateBtn && (
               <button
@@ -414,6 +486,39 @@ export default function VisitasTecnicasPage() {
           <strong>Gestión de Visitas:</strong> Inspecciones en sitio, hallazgos técnicos y
           aprobación controlada de cada visita.
         </p>
+      </div>
+
+      {/* Control Bar: Búsqueda textual y filtro por estado de aprobación */}
+      <div className="mutation-filter-bar" role="group" aria-label="Controles de búsqueda y filtrado">
+        <div className="mutation-search-box">
+          <Search size={15} aria-hidden="true" className="mutation-search-icon" />
+          <input
+            type="text"
+            className="mutation-search-input"
+            placeholder="Buscar por cliente, técnico, observaciones..."
+            value={q}
+            onChange={(e) => handleSearchChange(e.target.value)}
+          />
+        </div>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+          <Filter size={15} aria-hidden="true" className="mutation-filter-icon" />
+          <span className="mutation-filter-label">Aprobación:</span>
+          {(['Todas', 'Pendientes', 'Aprobadas'] as AprobacionFiltro[]).map((filtro) => (
+            <button
+              key={filtro}
+              type="button"
+              className={`mutation-filter-btn ${
+                aprobacionFiltro === filtro ? 'mutation-filter-btn--active' : ''
+              }`}
+              aria-pressed={aprobacionFiltro === filtro}
+              onClick={() => handleAprobacionFiltroChange(filtro)}
+              disabled={loading}
+            >
+              {filtro}
+            </button>
+          ))}
+        </div>
       </div>
 
       {successMsg && (
@@ -434,7 +539,7 @@ export default function VisitasTecnicasPage() {
         <div className="mutation-page-warning" role="status">
           <AlertTriangle size={15} aria-hidden="true" style={{ flexShrink: 0 }} />
           <span>
-            Se detectaron {inconsistenciasHistoricas} visita(s) aprobada(s) cuyo estado de
+            Se detectaron {inconsistenciasHistoricas} visita(s) aprobada(s) en esta página cuyo estado de
             solicitud aún es Pendiente o Programada. Son registros históricos previos a
             B4.2.0 y se muestran sin modificarlos.
           </span>
@@ -462,7 +567,7 @@ export default function VisitasTecnicasPage() {
           <button
             type="button"
             className="mutation-btn mutation-btn-secondary mutation-btn-sm mutation-retry-margin"
-            onClick={() => void fetchVisitasList()}
+            onClick={() => void fetchVisitasList(getQueryParams())}
           >
             <RefreshCw size={14} aria-hidden="true" />
             <span>Reintentar</span>
@@ -474,153 +579,179 @@ export default function VisitasTecnicasPage() {
         <>
           <div className="metrics-grid" style={{ marginBottom: '24px' }}>
             <div className="metric-card">
-              <span className="metric-label">Total Visitas</span>
-              <span className="metric-value">{visitas.length}</span>
+              <span className="metric-label">Encontradas</span>
+              <span className="metric-value">{totalCount}</span>
             </div>
             <div className="metric-card border-green">
-              <span className="metric-label">Visitas Aprobadas</span>
-              <span className="metric-value text-green">{aprobadas}</span>
+              <span className="metric-label">Aprobadas (página)</span>
+              <span className="metric-value text-green">{aprobadasPagina}</span>
             </div>
             <div className="metric-card border-amber">
-              <span className="metric-label">Visitas Pendientes</span>
-              <span className="metric-value text-amber">{pendientes}</span>
+              <span className="metric-label">Pendientes (página)</span>
+              <span className="metric-value text-amber">{pendientesPagina}</span>
             </div>
           </div>
 
-          {visitas.length > 0 && (
-            <div className="mutation-filter-bar" aria-label="Filtrar visitas por aprobación">
-              <span className="mutation-filter-label">Aprobación:</span>
-              {(['Todas', 'Pendientes', 'Aprobadas'] as AprobacionFiltro[]).map(
-                (filtro) => (
-                  <button
-                    key={filtro}
-                    type="button"
-                    className={`mutation-filter-btn ${
-                      aprobacionFiltro === filtro ? 'mutation-filter-btn--active' : ''
-                    }`}
-                    aria-pressed={aprobacionFiltro === filtro}
-                    onClick={() => setAprobacionFiltro(filtro)}
-                  >
-                    {filtro}
-                  </button>
-                )
-              )}
-              <span className="mutation-filter-count">
-                Mostrando {visitasFiltradas.length} de {visitas.length}
-              </span>
-            </div>
-          )}
-
           {visitas.length === 0 ? (
-            <p className="empty-message">No se encontraron visitas técnicas registradas.</p>
-          ) : visitasFiltradas.length === 0 ? (
             <p className="empty-message">
-              No existen visitas con el filtro “{aprobacionFiltro}”.
+              No se encontraron visitas técnicas
+              {q.trim() ? ` que coincidan con "${q}"` : ''}
+              {aprobacionFiltro !== 'Todas' ? ` con estado "${aprobacionFiltro}"` : ''}.
             </p>
           ) : (
-            <div className="table-responsive">
-              <table className="entity-table">
-                <thead>
-                  <tr>
-                    <th>ID</th>
-                    <th>Fecha y hora</th>
-                    <th>Solicitud</th>
-                    <th>Cliente</th>
-                    <th>Tipo</th>
-                    <th>Técnico</th>
-                    <th>Aprobación</th>
-                    <th>Estado solicitud</th>
-                    <th>Acciones</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {visitasFiltradas.map((visita) => (
-                    <tr key={visita.id}>
-                      <td className="text-bold">#{visita.id}</td>
-                      <td>{formatDateTime(visita.fechaVisita)}</td>
-                      <td>#{visita.solicitudId}</td>
-                      <td>{visita.clienteNombre || 'No disponible'}</td>
-                      <td>
-                        <span className="service-type-tag">
-                          {visita.tipoInstalacion || 'No especificado'}
-                        </span>
-                      </td>
-                      <td>
-                        {visita.tecnicoNombre || (
-                          <span className="text-muted">No asignado</span>
-                        )}
-                      </td>
-                      <td>
-                        <span
-                          className={`status-pill ${
-                            visita.aprobado ? 'badge-success' : 'badge-warning'
-                          }`}
-                        >
-                          {visita.aprobado ? 'Aprobada' : 'Pendiente'}
-                        </span>
-                      </td>
-                      <td>
-                        <span
-                          className={`status-pill ${getSolicitudStatusClass(
-                            visita.estadoSolicitud
-                          )}`}
-                        >
-                          {visita.estadoSolicitud || 'Sin estado'}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="mutation-action-buttons">
-                          <button
-                            type="button"
-                            className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                            onClick={() => void handleOpenDetailModal(visita, 'view')}
-                            title="Ver detalle de la visita"
+            <>
+              <div className="table-responsive">
+                <table className="entity-table">
+                  <thead>
+                    <tr>
+                      <th>ID</th>
+                      <th>Fecha y hora</th>
+                      <th>Solicitud</th>
+                      <th>Cliente</th>
+                      <th>Tipo</th>
+                      <th>Técnico</th>
+                      <th>Aprobación</th>
+                      <th>Estado solicitud</th>
+                      <th>Acciones</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {visitas.map((visita) => (
+                      <tr key={visita.id}>
+                        <td className="text-bold">#{visita.id}</td>
+                        <td>{formatDateTime(visita.fechaVisita)}</td>
+                        <td>#{visita.solicitudId}</td>
+                        <td>{visita.clienteNombre || 'No disponible'}</td>
+                        <td>
+                          <span className="service-type-tag">
+                            {visita.tipoInstalacion || 'No especificado'}
+                          </span>
+                        </td>
+                        <td>
+                          {visita.tecnicoNombre || (
+                            <span className="text-muted">No asignado</span>
+                          )}
+                        </td>
+                        <td>
+                          <span
+                            className={`status-pill ${
+                              visita.aprobado ? 'badge-success' : 'badge-warning'
+                            }`}
                           >
-                            <Eye size={13} aria-hidden="true" />
-                            <span>Ver</span>
-                          </button>
-                          {showEditBtn && (
+                            {visita.aprobado ? 'Aprobada' : 'Pendiente'}
+                          </span>
+                        </td>
+                        <td>
+                          <span
+                            className={`status-pill ${getSolicitudStatusClass(
+                              visita.estadoSolicitud
+                            )}`}
+                          >
+                            {visita.estadoSolicitud || 'Sin estado'}
+                          </span>
+                        </td>
+                        <td>
+                          <div className="mutation-action-buttons">
                             <button
                               type="button"
                               className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                              onClick={() => void handleOpenDetailModal(visita, 'edit')}
-                              title="Editar fecha y observaciones"
+                              onClick={() => void handleOpenDetailModal(visita, 'view')}
+                              title="Ver detalle de la visita"
                             >
-                              <Pencil size={13} aria-hidden="true" />
-                              <span>Editar</span>
+                              <Eye size={13} aria-hidden="true" />
+                              <span>Ver</span>
                             </button>
-                          )}
-                          {showApproveBtn &&
-                            !visita.aprobado &&
-                            solicitudAllowsApproval(visita.estadoSolicitud) && (
-                            <button
-                              type="button"
-                              className="mutation-btn mutation-btn-primary mutation-btn-sm"
-                              onClick={() => handleOpenApproveModal(visita)}
-                              title="Aprobar visita de forma irreversible"
-                            >
-                              <ShieldCheck size={13} aria-hidden="true" />
-                              <span>Aprobar</span>
-                            </button>
-                          )}
-                          {showDeleteBtn && !visita.aprobado && (
-                            <button
-                              type="button"
-                              className="mutation-btn mutation-btn-danger mutation-btn-sm"
-                              onClick={() => handleOpenDeleteModal(visita)}
-                              title="Eliminar visita pendiente"
-                            >
-                              <Trash2 size={13} aria-hidden="true" />
-                              <span>Eliminar</span>
-                            </button>
-                          )}
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
+                            {showEditBtn && (
+                              <button
+                                type="button"
+                                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                                onClick={() => void handleOpenDetailModal(visita, 'edit')}
+                                title="Editar fecha y observaciones"
+                              >
+                                <Pencil size={13} aria-hidden="true" />
+                                <span>Editar</span>
+                              </button>
+                            )}
+                            {showApproveBtn &&
+                              !visita.aprobado &&
+                              solicitudAllowsApproval(visita.estadoSolicitud) && (
+                              <button
+                                type="button"
+                                className="mutation-btn mutation-btn-primary mutation-btn-sm"
+                                onClick={() => handleOpenApproveModal(visita)}
+                                title="Aprobar visita de forma irreversible"
+                              >
+                                <ShieldCheck size={13} aria-hidden="true" />
+                                <span>Aprobar</span>
+                              </button>
+                            )}
+                            {showDeleteBtn && !visita.aprobado && (
+                              <button
+                                type="button"
+                                className="mutation-btn mutation-btn-danger mutation-btn-sm"
+                                onClick={() => handleOpenDeleteModal(visita)}
+                                title="Eliminar visita pendiente"
+                              >
+                                <Trash2 size={13} aria-hidden="true" />
+                                <span>Eliminar</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+
+              {/* Barra de Paginación */}
+              <div className="mutation-pagination-bar">
+                <div className="mutation-pagination-info">
+                  <span>Total encontrados: <strong>{totalCount}</strong></span>
+                  <span>•</span>
+                  <span>Página <strong>{pageNumber}</strong> de <strong>{totalPages || 1}</strong></span>
+                </div>
+
+                <div className="mutation-pagination-actions">
+                  <label htmlFor="pageSizeSelectVisitas" className="mutation-filter-label" style={{ marginRight: 4 }}>
+                    Mostrar:
+                  </label>
+                  <select
+                    id="pageSizeSelectVisitas"
+                    className="mutation-select-sm"
+                    value={pageSize}
+                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                    disabled={loading}
+                  >
+                    <option value={10}>10</option>
+                    <option value={20}>20</option>
+                    <option value={50}>50</option>
+                  </select>
+
+                  <button
+                    type="button"
+                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                    onClick={handlePrevPage}
+                    disabled={!hasPreviousPage || pageNumber <= 1 || loading}
+                    title="Página anterior"
+                  >
+                    <ChevronLeft size={14} aria-hidden="true" />
+                    <span>Anterior</span>
+                  </button>
+
+                  <button
+                    type="button"
+                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                    onClick={handleNextPage}
+                    disabled={!hasNextPage || pageNumber >= totalPages || loading}
+                    title="Página siguiente"
+                  >
+                    <span>Siguiente</span>
+                    <ChevronRight size={14} aria-hidden="true" />
+                  </button>
+                </div>
+              </div>
+            </>
           )}
         </>
       )}

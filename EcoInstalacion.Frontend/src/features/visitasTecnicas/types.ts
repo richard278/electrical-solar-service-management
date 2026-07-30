@@ -24,3 +24,28 @@ export interface VisitaTecnicaUpdatePayload {
   observaciones?: string | null;
   aprobado: boolean;
 }
+
+export interface PagedResult<T> {
+  items: T[];
+  pageNumber: number;
+  pageSize: number;
+  totalCount: number;
+  totalPages: number;
+  hasPreviousPage: boolean;
+  hasNextPage: boolean;
+}
+
+export interface VisitaTecnicaPagedQuery {
+  q?: string;
+  aprobado?: boolean;
+  solicitudId?: number;
+  estadoSolicitud?: string;
+  clienteNombre?: string;
+  tecnicoNombre?: string;
+  tipoInstalacion?: string;
+  fechaDesde?: string;
+  fechaHasta?: string;
+  pageNumber?: number;
+  pageSize?: number;
+}
+
