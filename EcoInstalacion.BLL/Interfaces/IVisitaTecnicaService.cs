@@ -1,4 +1,5 @@
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Shared;
 
 namespace EcoInstalacion.BLL.Interfaces
 {
@@ -10,7 +11,10 @@ namespace EcoInstalacion.BLL.Interfaces
         Task<VisitasTecnica> Crear(VisitasTecnica entidad);
         Task<VisitasTecnica> Editar(VisitasTecnica entidad);
         Task<bool> Eliminar(int id);
-        Task<EcoInstalacion.Entity.Pagination.PagedResultDto<VisitasTecnica>> ListaPaginada(
-            EcoInstalacion.Entity.Pagination.VisitaTecnicaQueryDto query);
+        Task<PagedResult<VisitasTecnica>> ListaPaginada(
+            string? q = null,
+            bool? aprobado = null,
+            int page = 1,
+            int pageSize = 25);
     }
 }

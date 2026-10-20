@@ -1,3 +1,4 @@
+using EcoInstalacion.AppWeb.DTOs.Shared;
 using EcoInstalacion.AppWeb.DTOs.VisitasTecnicas;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
@@ -48,22 +49,28 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         }
 
         [HttpGet("paginadas")]
-        [ProducesResponseType(typeof(EcoInstalacion.Entity.Pagination.PagedResultDto<VisitaTecnicaListDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<EcoInstalacion.Entity.Pagination.PagedResultDto<VisitaTecnicaListDto>>> GetVisitasPaginadas(
-            [FromQuery] EcoInstalacion.Entity.Pagination.VisitaTecnicaQueryDto query)
+        [ProducesResponseType(typeof(PagedResponse<VisitaTecnicaListDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResponse<VisitaTecnicaListDto>>> GetVisitasPaginadas(
+            [FromQuery] string? q = null,
+            [FromQuery] bool? aprobado = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25)
         {
-            query ??= new EcoInstalacion.Entity.Pagination.VisitaTecnicaQueryDto();
-            var result = await _visitaService.ListaPaginada(query);
+            var result = await _visitaService.ListaPaginada(
+                q,
+                aprobado,
+                page,
+                pageSize);
 
-            var mappedResult = new EcoInstalacion.Entity.Pagination.PagedResultDto<VisitaTecnicaListDto>
+            var response = new PagedResponse<VisitaTecnicaListDto>
             {
                 Items = result.Items.Select(ToListDto).ToList(),
-                TotalCount = result.TotalCount,
-                PageNumber = result.PageNumber,
-                PageSize = result.PageSize
+                Page = result.Page,
+                PageSize = result.PageSize,
+                TotalCount = result.TotalCount
             };
 
-            return Ok(mappedResult);
+            return Ok(response);
         }
 
         [HttpGet("{id:int}")]

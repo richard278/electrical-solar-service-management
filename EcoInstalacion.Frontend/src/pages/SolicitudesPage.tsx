@@ -40,6 +40,9 @@ import { ConfirmModal } from '../components/common/ConfirmModal';
 import { HttpError } from '../services/httpClient';
 import '../components/common/MutationUi.css';
 
+const DEFAULT_PAGE_SIZE = 25;
+const SEARCH_DEBOUNCE_MS = 300;
+
 type EstadoFiltro = 'Todas' | SolicitudEstado;
 type FormMode = 'create' | 'edit' | 'view';
 
@@ -84,9 +87,10 @@ export default function SolicitudesPage() {
 
   // Pagination & Filter state
   const [q, setQ] = useState<string>('');
+  const [debouncedQ, setDebouncedQ] = useState<string>('');
   const [estadoFiltro, setEstadoFiltro] = useState<EstadoFiltro>('Todas');
-  const [pageNumber, setPageNumber] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(0);
   const [hasPreviousPage, setHasPreviousPage] = useState<boolean>(false);
@@ -111,6 +115,18 @@ export default function SolicitudesPage() {
   const showEditBtn = canEditSolicitud(user);
   const showDeleteBtn = canDeleteSolicitud(user);
 
+  // ─── Debounce de búsqueda ─────────────────────────────────────────
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQ(q);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [q]);
+
   // ─── Fetch Paginado ───────────────────────────────────────────────
 
   const fetchSolicitudesList = useCallback(async (query: SolicitudPagedQuery) => {
@@ -122,11 +138,22 @@ export default function SolicitudesPage() {
     try {
       const data = await getSolicitudesPaginadas(query);
       if (requestId !== requestIdRef.current) return;
-      setSolicitudes(data.items || []);
-      setTotalCount(data.totalCount || 0);
-      setTotalPages(data.totalPages || 0);
-      setHasPreviousPage(!!data.hasPreviousPage);
-      setHasNextPage(!!data.hasNextPage);
+
+      const currentPage = data.page ?? query.page ?? 1;
+      const pageItems = data.items || [];
+
+      if (pageItems.length === 0 && currentPage > 1) {
+        const lastValidPage = Math.max(1, data.totalPages ?? 0);
+        setPage(lastValidPage);
+        return;
+      }
+
+      setSolicitudes(pageItems);
+      setPage(currentPage);
+      setTotalCount(data.totalCount ?? 0);
+      setTotalPages(data.totalPages ?? 0);
+      setHasPreviousPage(Boolean(data.hasPreviousPage));
+      setHasNextPage(Boolean(data.hasNextPage));
     } catch (fetchError) {
       if (requestId !== requestIdRef.current) return;
 
@@ -150,43 +177,43 @@ export default function SolicitudesPage() {
 
   useEffect(() => {
     void fetchSolicitudesList({
-      q,
+      q: debouncedQ,
       estado: estadoFiltro,
-      pageNumber,
+      page,
       pageSize
     });
-  }, [fetchSolicitudesList, q, estadoFiltro, pageNumber, pageSize]);
+  }, [fetchSolicitudesList, debouncedQ, estadoFiltro, page, pageSize]);
 
   // ─── Control Handlers ─────────────────────────────────────────────
 
   const handleSearchChange = (val: string) => {
     setQ(val);
-    setPageNumber(1);
+    setPage(1);
     setSuccessMsg(null);
   };
 
   const handleEstadoFiltroChange = (nuevoEstado: EstadoFiltro) => {
     setEstadoFiltro(nuevoEstado);
-    setPageNumber(1);
+    setPage(1);
     setSuccessMsg(null);
   };
 
   const handlePageSizeChange = (nuevoSize: number) => {
     setPageSize(nuevoSize);
-    setPageNumber(1);
+    setPage(1);
     setSuccessMsg(null);
   };
 
   const handlePrevPage = () => {
-    if (hasPreviousPage && pageNumber > 1) {
-      setPageNumber((p) => p - 1);
+    if (hasPreviousPage && page > 1) {
+      setPage((p) => p - 1);
       setSuccessMsg(null);
     }
   };
 
   const handleNextPage = () => {
-    if (hasNextPage && pageNumber < totalPages) {
-      setPageNumber((p) => p + 1);
+    if (hasNextPage && page < totalPages) {
+      setPage((p) => p + 1);
       setSuccessMsg(null);
     }
   };
@@ -228,7 +255,7 @@ export default function SolicitudesPage() {
 
       if (detailError instanceof HttpError) {
         if (detailError.status === 404) {
-          await fetchSolicitudesList({ q, estado: estadoFiltro, pageNumber, pageSize });
+          await fetchSolicitudesList({ q: debouncedQ, estado: estadoFiltro, page, pageSize });
           setOpError(`La solicitud #${solicitud.id} ya no existe.`);
         } else if (detailError.status === 403) {
           setOpError('Acceso Denegado: No posees permisos para consultar esta solicitud.');
@@ -253,9 +280,11 @@ export default function SolicitudesPage() {
     if (formMode === 'create') {
       await createSolicitud(payload as SolicitudCreatePayload);
       setIsFormOpen(false);
-      setPageNumber(1);
+      setQ('');
+      setDebouncedQ('');
+      setPage(1);
       setSuccessMsg('Solicitud creada correctamente con estado Pendiente.');
-      void fetchSolicitudesList({ q: '', estado: estadoFiltro, pageNumber: 1, pageSize });
+      void fetchSolicitudesList({ q: '', estado: estadoFiltro, page: 1, pageSize });
       return;
     }
 
@@ -267,11 +296,11 @@ export default function SolicitudesPage() {
         payload as SolicitudUpdatePayload
       );
       setIsFormOpen(false);
-      void fetchSolicitudesList({ q, estado: estadoFiltro, pageNumber, pageSize });
+      void fetchSolicitudesList({ q: debouncedQ, estado: estadoFiltro, page, pageSize });
       setSuccessMsg(`Solicitud #${selectedSolicitudDetail.id} actualizada correctamente.`);
     } catch (saveError) {
       if (saveError instanceof HttpError && saveError.status === 404) {
-        await fetchSolicitudesList({ q, estado: estadoFiltro, pageNumber, pageSize });
+        await fetchSolicitudesList({ q: debouncedQ, estado: estadoFiltro, page, pageSize });
       }
       throw saveError;
     }
@@ -297,10 +326,10 @@ export default function SolicitudesPage() {
       setIsDeleteOpen(false);
       setSolicitudToDelete(null);
 
-      if (solicitudes.length === 1 && pageNumber > 1) {
-        setPageNumber((p) => p - 1);
+      if (solicitudes.length === 1 && page > 1) {
+        setPage((p) => p - 1);
       } else {
-        void fetchSolicitudesList({ q, estado: estadoFiltro, pageNumber, pageSize });
+        void fetchSolicitudesList({ q: debouncedQ, estado: estadoFiltro, page, pageSize });
       }
       setSuccessMsg(`Solicitud #${solicitudId} eliminada correctamente.`);
     } catch (deleteFailure) {
@@ -316,7 +345,7 @@ export default function SolicitudesPage() {
           setIsDeleteOpen(false);
           setSolicitudToDelete(null);
           setDeleteError(null);
-          await fetchSolicitudesList({ q, estado: estadoFiltro, pageNumber, pageSize });
+          await fetchSolicitudesList({ q: debouncedQ, estado: estadoFiltro, page, pageSize });
           setOpError('La solicitud ya no existe. Se actualizó el listado.');
         } else if (deleteFailure.status === 401) {
           setDeleteError(deleteFailure.message || 'Sesión no autorizada o expirada.');
@@ -334,6 +363,15 @@ export default function SolicitudesPage() {
       setIsDeleting(false);
     }
   };
+
+  const rangeStart =
+    totalCount === 0 || solicitudes.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd =
+    totalCount === 0 || solicitudes.length === 0
+      ? 0
+      : rangeStart + solicitudes.length - 1;
+  const displayPage = totalCount === 0 ? 0 : page;
+  const displayTotalPages = totalCount === 0 ? 0 : totalPages;
 
   return (
     <div className="entity-panel">
@@ -376,7 +414,8 @@ export default function SolicitudesPage() {
           <input
             type="text"
             className="mutation-search-input"
-            placeholder="Buscar por cliente, técnico, tipo de instalación..."
+            placeholder="Buscar por nombre del cliente..."
+            aria-label="Buscar solicitudes por nombre del cliente"
             value={q}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
@@ -437,7 +476,14 @@ export default function SolicitudesPage() {
           <button
             type="button"
             className="mutation-btn mutation-btn-secondary mutation-btn-sm mutation-retry-margin"
-            onClick={() => void fetchSolicitudesList({ q, estado: estadoFiltro, pageNumber, pageSize })}
+            onClick={() =>
+              void fetchSolicitudesList({
+                q: debouncedQ,
+                estado: estadoFiltro,
+                page,
+                pageSize
+              })
+            }
           >
             <RefreshCw size={14} aria-hidden="true" />
             <span>Reintentar</span>
@@ -450,139 +496,161 @@ export default function SolicitudesPage() {
           {solicitudes.length === 0 ? (
             <p className="empty-message">
               No se encontraron solicitudes
-              {q.trim() ? ` que coincidan con "${q}"` : ''}
+              {debouncedQ.trim() ? ` que coincidan con "${debouncedQ.trim()}"` : ''}
               {estadoFiltro !== 'Todas' ? ` con estado "${estadoFiltro}"` : ''}.
             </p>
           ) : (
-            <>
-              <div className="table-responsive">
-                <table className="entity-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Fecha Solicitud</th>
-                      <th>Cliente</th>
-                      <th>Tipo de Instalación</th>
-                      <th>Técnico Asignado</th>
-                      <th>Estado</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {solicitudes.map((solicitud) => (
-                      <tr key={solicitud.id}>
-                        <td className="text-bold">#{solicitud.id}</td>
-                        <td>{formatDate(solicitud.fechaSolicitud)}</td>
-                        <td>
-                          {solicitud.clienteNombre || `Cliente #${solicitud.clienteId}`}
-                        </td>
-                        <td>
-                          <span className="service-type-tag">
-                            {solicitud.tipoInstalacion || 'No especificado'}
-                          </span>
-                        </td>
-                        <td>
-                          {solicitud.tecnicoNombre || (
-                            <span className="text-muted">No asignado</span>
-                          )}
-                        </td>
-                        <td>
-                          <span
-                            className={`status-pill ${getStatusClass(solicitud.estado)}`}
+            <div className="table-responsive">
+              <table className="entity-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Fecha Solicitud</th>
+                    <th>Cliente</th>
+                    <th>Tipo de Instalación</th>
+                    <th>Técnico Asignado</th>
+                    <th>Estado</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {solicitudes.map((solicitud) => (
+                    <tr key={solicitud.id}>
+                      <td className="text-bold">#{solicitud.id}</td>
+                      <td>{formatDate(solicitud.fechaSolicitud)}</td>
+                      <td>
+                        {solicitud.clienteNombre || `Cliente #${solicitud.clienteId}`}
+                      </td>
+                      <td>
+                        <span className="service-type-tag">
+                          {solicitud.tipoInstalacion || 'No especificado'}
+                        </span>
+                      </td>
+                      <td>
+                        {solicitud.tecnicoNombre || (
+                          <span className="text-muted">No asignado</span>
+                        )}
+                      </td>
+                      <td>
+                        <span
+                          className={`status-pill ${getStatusClass(solicitud.estado)}`}
+                        >
+                          {solicitud.estado || 'Sin estado'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="mutation-action-buttons">
+                          <button
+                            type="button"
+                            className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                            onClick={() => void handleOpenDetailModal(solicitud, 'view')}
+                            title="Ver detalle de la solicitud"
                           >
-                            {solicitud.estado || 'Sin estado'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="mutation-action-buttons">
+                            <Eye size={13} aria-hidden="true" />
+                            <span>Ver</span>
+                          </button>
+                          {showEditBtn && (
                             <button
                               type="button"
                               className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                              onClick={() => void handleOpenDetailModal(solicitud, 'view')}
-                              title="Ver detalle de la solicitud"
+                              onClick={() => void handleOpenDetailModal(solicitud, 'edit')}
+                              title="Editar solicitud"
                             >
-                              <Eye size={13} aria-hidden="true" />
-                              <span>Ver</span>
+                              <Pencil size={13} aria-hidden="true" />
+                              <span>Editar</span>
                             </button>
-                            {showEditBtn && (
-                              <button
-                                type="button"
-                                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                                onClick={() => void handleOpenDetailModal(solicitud, 'edit')}
-                                title="Editar solicitud"
-                              >
-                                <Pencil size={13} aria-hidden="true" />
-                                <span>Editar</span>
-                              </button>
-                            )}
-                            {showDeleteBtn && (
-                              <button
-                                type="button"
-                                className="mutation-btn mutation-btn-danger mutation-btn-sm"
-                                onClick={() => handleOpenDeleteModal(solicitud)}
-                                title="Eliminar solicitud"
-                              >
-                                <Trash2 size={13} aria-hidden="true" />
-                                <span>Eliminar</span>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Barra de Paginación */}
-              <div className="mutation-pagination-bar">
-                <div className="mutation-pagination-info">
-                  <span>Total encontrados: <strong>{totalCount}</strong></span>
-                  <span>•</span>
-                  <span>Página <strong>{pageNumber}</strong> de <strong>{totalPages || 1}</strong></span>
-                </div>
-
-                <div className="mutation-pagination-actions">
-                  <label htmlFor="pageSizeSelectSolicitudes" className="mutation-filter-label" style={{ marginRight: 4 }}>
-                    Mostrar:
-                  </label>
-                  <select
-                    id="pageSizeSelectSolicitudes"
-                    className="mutation-select-sm"
-                    value={pageSize}
-                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                    disabled={loading}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-
-                  <button
-                    type="button"
-                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                    onClick={handlePrevPage}
-                    disabled={!hasPreviousPage || pageNumber <= 1 || loading}
-                    title="Página anterior"
-                  >
-                    <ChevronLeft size={14} aria-hidden="true" />
-                    <span>Anterior</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                    onClick={handleNextPage}
-                    disabled={!hasNextPage || pageNumber >= totalPages || loading}
-                    title="Página siguiente"
-                  >
-                    <span>Siguiente</span>
-                    <ChevronRight size={14} aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-            </>
+                          )}
+                          {showDeleteBtn && (
+                            <button
+                              type="button"
+                              className="mutation-btn mutation-btn-danger mutation-btn-sm"
+                              onClick={() => handleOpenDeleteModal(solicitud)}
+                              title="Eliminar solicitud"
+                            >
+                              <Trash2 size={13} aria-hidden="true" />
+                              <span>Eliminar</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
+
+          {/* Barra de Paginación */}
+          <div className="mutation-pagination-bar">
+            <div className="mutation-pagination-info">
+              {totalCount === 0 ? (
+                <>
+                  <span>
+                    <strong>0</strong> registros
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Página <strong>0</strong> de <strong>0</strong>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    Mostrando <strong>{rangeStart}–{rangeEnd}</strong> de{' '}
+                    <strong>{totalCount}</strong> registros
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Página <strong>{displayPage}</strong> de{' '}
+                    <strong>{displayTotalPages}</strong>
+                  </span>
+                </>
+              )}
+            </div>
+
+            <div className="mutation-pagination-actions">
+              <label
+                htmlFor="pageSizeSelectSolicitudes"
+                className="mutation-filter-label"
+                style={{ marginRight: 4 }}
+              >
+                Mostrar:
+              </label>
+              <select
+                id="pageSizeSelectSolicitudes"
+                className="mutation-select-sm"
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                disabled={loading}
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+
+              <button
+                type="button"
+                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                onClick={handlePrevPage}
+                disabled={!hasPreviousPage || page <= 1 || loading}
+                title="Página anterior"
+              >
+                <ChevronLeft size={14} aria-hidden="true" />
+                <span>Anterior</span>
+              </button>
+
+              <button
+                type="button"
+                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                onClick={handleNextPage}
+                disabled={!hasNextPage || page >= totalPages || loading}
+                title="Página siguiente"
+              >
+                <span>Siguiente</span>
+                <ChevronRight size={14} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         </>
       )}
 
@@ -635,4 +703,3 @@ export default function SolicitudesPage() {
     </div>
   );
 }
-

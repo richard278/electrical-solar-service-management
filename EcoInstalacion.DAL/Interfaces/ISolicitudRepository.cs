@@ -1,4 +1,5 @@
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Shared;
 
 namespace EcoInstalacion.DAL.Interfaces
 {
@@ -24,9 +25,13 @@ namespace EcoInstalacion.DAL.Interfaces
         Task<SolicitudesInstalacion?> ObtenerConVisitas(int id);
 
         /// <summary>
-        /// Obtiene una lista paginada de solicitudes con Cliente y TecnicoAsignado cargados, filtrada según la consulta DTO.
+        /// Obtiene una lista paginada de solicitudes con Cliente y TecnicoAsignado cargados.
         /// Sin tracking.
         /// </summary>
-        Task<EcoInstalacion.Entity.Pagination.PagedResultDto<SolicitudesInstalacion>> ListaPaginadaSinTracking(EcoInstalacion.Entity.Pagination.SolicitudQueryDto query);
+        Task<PagedResult<SolicitudesInstalacion>> ListaPaginadaSinTracking(
+            string? q = null,
+            string? estado = null,
+            int page = 1,
+            int pageSize = 25);
     }
 }

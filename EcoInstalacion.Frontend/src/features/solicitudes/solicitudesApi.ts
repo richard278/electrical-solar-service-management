@@ -1,16 +1,16 @@
 import { request } from '../../services/httpClient';
+import type { PagedResponse } from '../../types/pagination';
 import type {
   SolicitudCreatePayload,
   SolicitudDetail,
   SolicitudListItem,
   SolicitudUpdatePayload,
-  PagedResult,
   SolicitudPagedQuery
 } from './types';
 
 export function getSolicitudesPaginadas(
   query: SolicitudPagedQuery
-): Promise<PagedResult<SolicitudListItem>> {
+): Promise<PagedResponse<SolicitudListItem>> {
   const params = new URLSearchParams();
   if (query.q && query.q.trim() !== '') {
     params.append('q', query.q.trim());
@@ -18,29 +18,8 @@ export function getSolicitudesPaginadas(
   if (query.estado && query.estado.trim() !== '' && query.estado !== 'Todas') {
     params.append('estado', query.estado.trim());
   }
-  if (query.clienteId !== undefined && query.clienteId !== null) {
-    params.append('clienteId', query.clienteId.toString());
-  }
-  if (query.tecnicoAsignadoId !== undefined && query.tecnicoAsignadoId !== null) {
-    params.append('tecnicoAsignadoId', query.tecnicoAsignadoId.toString());
-  }
-  if (query.tipoInstalacion && query.tipoInstalacion.trim() !== '') {
-    params.append('tipoInstalacion', query.tipoInstalacion.trim());
-  }
-  if (query.fechaDesde && query.fechaDesde.trim() !== '') {
-    params.append('fechaDesde', query.fechaDesde.trim());
-  }
-  if (query.fechaHasta && query.fechaHasta.trim() !== '') {
-    params.append('fechaHasta', query.fechaHasta.trim());
-  }
-  if (query.clienteNombre && query.clienteNombre.trim() !== '') {
-    params.append('clienteNombre', query.clienteNombre.trim());
-  }
-  if (query.tecnicoNombre && query.tecnicoNombre.trim() !== '') {
-    params.append('tecnicoNombre', query.tecnicoNombre.trim());
-  }
-  if (query.pageNumber !== undefined && query.pageNumber !== null) {
-    params.append('pageNumber', query.pageNumber.toString());
+  if (query.page !== undefined && query.page !== null) {
+    params.append('page', query.page.toString());
   }
   if (query.pageSize !== undefined && query.pageSize !== null) {
     params.append('pageSize', query.pageSize.toString());
@@ -49,7 +28,7 @@ export function getSolicitudesPaginadas(
   const queryString = params.toString();
   const url = `api/solicitudes/paginadas${queryString ? `?${queryString}` : ''}`;
 
-  return request<PagedResult<SolicitudListItem>>(url);
+  return request<PagedResponse<SolicitudListItem>>(url);
 }
 
 export function getSolicitudes(): Promise<SolicitudListItem[]> {

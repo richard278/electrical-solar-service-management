@@ -1,3 +1,4 @@
+using EcoInstalacion.AppWeb.DTOs.Shared;
 using EcoInstalacion.AppWeb.DTOs.Solicitudes;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
@@ -30,22 +31,28 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         }
 
         [HttpGet("paginadas")]
-        [ProducesResponseType(typeof(EcoInstalacion.Entity.Pagination.PagedResultDto<SolicitudListDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<EcoInstalacion.Entity.Pagination.PagedResultDto<SolicitudListDto>>> GetSolicitudesPaginadas(
-            [FromQuery] EcoInstalacion.Entity.Pagination.SolicitudQueryDto query)
+        [ProducesResponseType(typeof(PagedResponse<SolicitudListDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResponse<SolicitudListDto>>> GetSolicitudesPaginadas(
+            [FromQuery] string? q = null,
+            [FromQuery] string? estado = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25)
         {
-            query ??= new EcoInstalacion.Entity.Pagination.SolicitudQueryDto();
-            var result = await _solicitudService.ListaPaginada(query);
+            var result = await _solicitudService.ListaPaginada(
+                q,
+                estado,
+                page,
+                pageSize);
 
-            var mappedResult = new EcoInstalacion.Entity.Pagination.PagedResultDto<SolicitudListDto>
+            var response = new PagedResponse<SolicitudListDto>
             {
                 Items = result.Items.Select(ToListDto).ToList(),
-                TotalCount = result.TotalCount,
-                PageNumber = result.PageNumber,
-                PageSize = result.PageSize
+                Page = result.Page,
+                PageSize = result.PageSize,
+                TotalCount = result.TotalCount
             };
 
-            return Ok(mappedResult);
+            return Ok(response);
         }
 
         [HttpGet("{id:int}")]

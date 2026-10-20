@@ -1,6 +1,7 @@
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Shared;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
@@ -108,13 +109,17 @@ namespace EcoInstalacion.BLL.Implementacion
             return await _visitaTecnicaRepository.ObtenerPorIdConSolicitudCliente(id);
         }
 
-        public async Task<EcoInstalacion.Entity.Pagination.PagedResultDto<VisitasTecnica>> ListaPaginada(
-            EcoInstalacion.Entity.Pagination.VisitaTecnicaQueryDto query)
+        public async Task<PagedResult<VisitasTecnica>> ListaPaginada(
+            string? q = null,
+            bool? aprobado = null,
+            int page = 1,
+            int pageSize = 25)
         {
-            if (query is null)
-                throw new ArgumentNullException(nameof(query));
-
-            return await _visitaTecnicaRepository.ListaPaginadaSinTracking(query);
+            return await _visitaTecnicaRepository.ListaPaginadaSinTracking(
+                q,
+                aprobado,
+                page,
+                pageSize);
         }
 
         private static void NormalizarYValidarCampos(VisitasTecnica entidad)

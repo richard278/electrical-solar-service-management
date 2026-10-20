@@ -1,16 +1,16 @@
 import { request } from '../../services/httpClient';
+import type { PagedResponse } from '../../types/pagination';
 import type {
   VisitaTecnicaCreatePayload,
   VisitaTecnicaDetail,
   VisitaTecnicaListItem,
   VisitaTecnicaUpdatePayload,
-  PagedResult,
   VisitaTecnicaPagedQuery
 } from './types';
 
 export function getVisitasTecnicasPaginadas(
   query: VisitaTecnicaPagedQuery
-): Promise<PagedResult<VisitaTecnicaListItem>> {
+): Promise<PagedResponse<VisitaTecnicaListItem>> {
   const params = new URLSearchParams();
   if (query.q && query.q.trim() !== '') {
     params.append('q', query.q.trim());
@@ -18,29 +18,8 @@ export function getVisitasTecnicasPaginadas(
   if (query.aprobado !== undefined && query.aprobado !== null) {
     params.append('aprobado', query.aprobado.toString());
   }
-  if (query.solicitudId !== undefined && query.solicitudId !== null) {
-    params.append('solicitudId', query.solicitudId.toString());
-  }
-  if (query.estadoSolicitud && query.estadoSolicitud.trim() !== '') {
-    params.append('estadoSolicitud', query.estadoSolicitud.trim());
-  }
-  if (query.clienteNombre && query.clienteNombre.trim() !== '') {
-    params.append('clienteNombre', query.clienteNombre.trim());
-  }
-  if (query.tecnicoNombre && query.tecnicoNombre.trim() !== '') {
-    params.append('tecnicoNombre', query.tecnicoNombre.trim());
-  }
-  if (query.tipoInstalacion && query.tipoInstalacion.trim() !== '') {
-    params.append('tipoInstalacion', query.tipoInstalacion.trim());
-  }
-  if (query.fechaDesde && query.fechaDesde.trim() !== '') {
-    params.append('fechaDesde', query.fechaDesde.trim());
-  }
-  if (query.fechaHasta && query.fechaHasta.trim() !== '') {
-    params.append('fechaHasta', query.fechaHasta.trim());
-  }
-  if (query.pageNumber !== undefined && query.pageNumber !== null) {
-    params.append('pageNumber', query.pageNumber.toString());
+  if (query.page !== undefined && query.page !== null) {
+    params.append('page', query.page.toString());
   }
   if (query.pageSize !== undefined && query.pageSize !== null) {
     params.append('pageSize', query.pageSize.toString());
@@ -49,7 +28,7 @@ export function getVisitasTecnicasPaginadas(
   const queryString = params.toString();
   const url = `api/visitas-tecnicas/paginadas${queryString ? `?${queryString}` : ''}`;
 
-  return request<PagedResult<VisitaTecnicaListItem>>(url);
+  return request<PagedResponse<VisitaTecnicaListItem>>(url);
 }
 
 export function getVisitasTecnicas(): Promise<VisitaTecnicaListItem[]> {

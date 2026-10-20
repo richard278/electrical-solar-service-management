@@ -1,4 +1,5 @@
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Shared;
 
 namespace EcoInstalacion.DAL.Interfaces
 {
@@ -10,7 +11,10 @@ namespace EcoInstalacion.DAL.Interfaces
         Task<bool> EditarConTransicionAprobacion(
             VisitasTecnica visita,
             bool actualizarSolicitudAEnProceso);
-        Task<EcoInstalacion.Entity.Pagination.PagedResultDto<VisitasTecnica>> ListaPaginadaSinTracking(
-            EcoInstalacion.Entity.Pagination.VisitaTecnicaQueryDto query);
+        Task<PagedResult<VisitasTecnica>> ListaPaginadaSinTracking(
+            string? q = null,
+            bool? aprobado = null,
+            int page = 1,
+            int pageSize = 25);
     }
 }

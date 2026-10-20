@@ -40,6 +40,9 @@ import { ConfirmModal } from '../components/common/ConfirmModal';
 import { HttpError } from '../services/httpClient';
 import '../components/common/MutationUi.css';
 
+const DEFAULT_PAGE_SIZE = 25;
+const SEARCH_DEBOUNCE_MS = 300;
+
 type AprobacionFiltro = 'Todas' | 'Pendientes' | 'Aprobadas';
 type FormMode = 'create' | 'edit' | 'view';
 
@@ -102,10 +105,11 @@ export default function VisitasTecnicasPage() {
 
   // Pagination & Filter state
   const [q, setQ] = useState<string>('');
+  const [debouncedQ, setDebouncedQ] = useState<string>('');
   const [aprobacionFiltro, setAprobacionFiltro] =
     useState<AprobacionFiltro>('Todas');
-  const [pageNumber, setPageNumber] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize, setPageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(0);
   const [hasPreviousPage, setHasPreviousPage] = useState<boolean>(false);
@@ -147,6 +151,18 @@ export default function VisitasTecnicasPage() {
     [visitas]
   );
 
+  // ─── Debounce de búsqueda ─────────────────────────────────────────
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQ(q);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [q]);
+
   // ─── Fetch Paginado ───────────────────────────────────────────────
 
   const fetchVisitasList = useCallback(async (query: VisitaTecnicaPagedQuery) => {
@@ -158,11 +174,22 @@ export default function VisitasTecnicasPage() {
     try {
       const data = await getVisitasTecnicasPaginadas(query);
       if (requestId !== requestIdRef.current) return;
-      setVisitas(data.items || []);
-      setTotalCount(data.totalCount || 0);
-      setTotalPages(data.totalPages || 0);
-      setHasPreviousPage(!!data.hasPreviousPage);
-      setHasNextPage(!!data.hasNextPage);
+
+      const currentPage = data.page ?? query.page ?? 1;
+      const pageItems = data.items || [];
+
+      if (pageItems.length === 0 && currentPage > 1) {
+        const lastValidPage = Math.max(1, data.totalPages ?? 0);
+        setPage(lastValidPage);
+        return;
+      }
+
+      setVisitas(pageItems);
+      setPage(currentPage);
+      setTotalCount(data.totalCount ?? 0);
+      setTotalPages(data.totalPages ?? 0);
+      setHasPreviousPage(Boolean(data.hasPreviousPage));
+      setHasNextPage(Boolean(data.hasNextPage));
     } catch (fetchError) {
       if (requestId !== requestIdRef.current) return;
 
@@ -184,23 +211,24 @@ export default function VisitasTecnicasPage() {
     }
   }, []);
 
-  const getQueryParams = useCallback((
-    pNum = pageNumber,
-    queryQ = q,
-    filtro = aprobacionFiltro
-  ): VisitaTecnicaPagedQuery => {
-    const aprobadoParam =
-      filtro === 'Todas'
-        ? undefined
-        : filtro === 'Aprobadas';
+  const getQueryParams = useCallback(
+    (
+      pNum = page,
+      queryQ = debouncedQ,
+      filtro = aprobacionFiltro
+    ): VisitaTecnicaPagedQuery => {
+      const aprobadoParam =
+        filtro === 'Todas' ? undefined : filtro === 'Aprobadas';
 
-    return {
-      q: queryQ,
-      aprobado: aprobadoParam,
-      pageNumber: pNum,
-      pageSize
-    };
-  }, [pageNumber, q, aprobacionFiltro, pageSize]);
+      return {
+        q: queryQ,
+        aprobado: aprobadoParam,
+        page: pNum,
+        pageSize
+      };
+    },
+    [page, debouncedQ, aprobacionFiltro, pageSize]
+  );
 
   useEffect(() => {
     void fetchVisitasList(getQueryParams());
@@ -210,32 +238,32 @@ export default function VisitasTecnicasPage() {
 
   const handleSearchChange = (val: string) => {
     setQ(val);
-    setPageNumber(1);
+    setPage(1);
     setSuccessMsg(null);
   };
 
   const handleAprobacionFiltroChange = (nuevoFiltro: AprobacionFiltro) => {
     setAprobacionFiltro(nuevoFiltro);
-    setPageNumber(1);
+    setPage(1);
     setSuccessMsg(null);
   };
 
   const handlePageSizeChange = (nuevoSize: number) => {
     setPageSize(nuevoSize);
-    setPageNumber(1);
+    setPage(1);
     setSuccessMsg(null);
   };
 
   const handlePrevPage = () => {
-    if (hasPreviousPage && pageNumber > 1) {
-      setPageNumber((p) => p - 1);
+    if (hasPreviousPage && page > 1) {
+      setPage((p) => p - 1);
       setSuccessMsg(null);
     }
   };
 
   const handleNextPage = () => {
-    if (hasNextPage && pageNumber < totalPages) {
-      setPageNumber((p) => p + 1);
+    if (hasNextPage && page < totalPages) {
+      setPage((p) => p + 1);
       setSuccessMsg(null);
     }
   };
@@ -302,7 +330,9 @@ export default function VisitasTecnicasPage() {
     if (formMode === 'create') {
       await createVisitaTecnica(payload as VisitaTecnicaCreatePayload);
       setIsFormOpen(false);
-      setPageNumber(1);
+      setQ('');
+      setDebouncedQ('');
+      setPage(1);
       setSuccessMsg('Visita técnica creada correctamente con aprobación pendiente.');
       void fetchVisitasList(getQueryParams(1, '', aprobacionFiltro));
       return;
@@ -417,8 +447,8 @@ export default function VisitasTecnicasPage() {
       setIsDeleteOpen(false);
       setVisitaToDelete(null);
 
-      if (visitas.length === 1 && pageNumber > 1) {
-        setPageNumber((p) => p - 1);
+      if (visitas.length === 1 && page > 1) {
+        setPage((p) => p - 1);
       } else {
         void fetchVisitasList(getQueryParams());
       }
@@ -453,6 +483,15 @@ export default function VisitasTecnicasPage() {
       setIsDeleting(false);
     }
   };
+
+  const rangeStart =
+    totalCount === 0 || visitas.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd =
+    totalCount === 0 || visitas.length === 0
+      ? 0
+      : rangeStart + visitas.length - 1;
+  const displayPage = totalCount === 0 ? 0 : page;
+  const displayTotalPages = totalCount === 0 ? 0 : totalPages;
 
   return (
     <div className="entity-panel">
@@ -495,7 +534,8 @@ export default function VisitasTecnicasPage() {
           <input
             type="text"
             className="mutation-search-input"
-            placeholder="Buscar por cliente, técnico, observaciones..."
+            placeholder="Buscar por nombre del cliente..."
+            aria-label="Buscar visitas técnicas por nombre del cliente"
             value={q}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
@@ -595,164 +635,186 @@ export default function VisitasTecnicasPage() {
           {visitas.length === 0 ? (
             <p className="empty-message">
               No se encontraron visitas técnicas
-              {q.trim() ? ` que coincidan con "${q}"` : ''}
+              {debouncedQ.trim() ? ` que coincidan con "${debouncedQ.trim()}"` : ''}
               {aprobacionFiltro !== 'Todas' ? ` con estado "${aprobacionFiltro}"` : ''}.
             </p>
           ) : (
-            <>
-              <div className="table-responsive">
-                <table className="entity-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Fecha y hora</th>
-                      <th>Solicitud</th>
-                      <th>Cliente</th>
-                      <th>Tipo</th>
-                      <th>Técnico</th>
-                      <th>Aprobación</th>
-                      <th>Estado solicitud</th>
-                      <th>Acciones</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {visitas.map((visita) => (
-                      <tr key={visita.id}>
-                        <td className="text-bold">#{visita.id}</td>
-                        <td>{formatDateTime(visita.fechaVisita)}</td>
-                        <td>#{visita.solicitudId}</td>
-                        <td>{visita.clienteNombre || 'No disponible'}</td>
-                        <td>
-                          <span className="service-type-tag">
-                            {visita.tipoInstalacion || 'No especificado'}
-                          </span>
-                        </td>
-                        <td>
-                          {visita.tecnicoNombre || (
-                            <span className="text-muted">No asignado</span>
-                          )}
-                        </td>
-                        <td>
-                          <span
-                            className={`status-pill ${
-                              visita.aprobado ? 'badge-success' : 'badge-warning'
-                            }`}
+            <div className="table-responsive">
+              <table className="entity-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Fecha y hora</th>
+                    <th>Solicitud</th>
+                    <th>Cliente</th>
+                    <th>Tipo</th>
+                    <th>Técnico</th>
+                    <th>Aprobación</th>
+                    <th>Estado solicitud</th>
+                    <th>Acciones</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {visitas.map((visita) => (
+                    <tr key={visita.id}>
+                      <td className="text-bold">#{visita.id}</td>
+                      <td>{formatDateTime(visita.fechaVisita)}</td>
+                      <td>#{visita.solicitudId}</td>
+                      <td>{visita.clienteNombre || 'No disponible'}</td>
+                      <td>
+                        <span className="service-type-tag">
+                          {visita.tipoInstalacion || 'No especificado'}
+                        </span>
+                      </td>
+                      <td>
+                        {visita.tecnicoNombre || (
+                          <span className="text-muted">No asignado</span>
+                        )}
+                      </td>
+                      <td>
+                        <span
+                          className={`status-pill ${
+                            visita.aprobado ? 'badge-success' : 'badge-warning'
+                          }`}
+                        >
+                          {visita.aprobado ? 'Aprobada' : 'Pendiente'}
+                        </span>
+                      </td>
+                      <td>
+                        <span
+                          className={`status-pill ${getSolicitudStatusClass(
+                            visita.estadoSolicitud
+                          )}`}
+                        >
+                          {visita.estadoSolicitud || 'Sin estado'}
+                        </span>
+                      </td>
+                      <td>
+                        <div className="mutation-action-buttons">
+                          <button
+                            type="button"
+                            className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                            onClick={() => void handleOpenDetailModal(visita, 'view')}
+                            title="Ver detalle de la visita"
                           >
-                            {visita.aprobado ? 'Aprobada' : 'Pendiente'}
-                          </span>
-                        </td>
-                        <td>
-                          <span
-                            className={`status-pill ${getSolicitudStatusClass(
-                              visita.estadoSolicitud
-                            )}`}
-                          >
-                            {visita.estadoSolicitud || 'Sin estado'}
-                          </span>
-                        </td>
-                        <td>
-                          <div className="mutation-action-buttons">
+                            <Eye size={13} aria-hidden="true" />
+                            <span>Ver</span>
+                          </button>
+                          {showEditBtn && (
                             <button
                               type="button"
                               className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                              onClick={() => void handleOpenDetailModal(visita, 'view')}
-                              title="Ver detalle de la visita"
+                              onClick={() => void handleOpenDetailModal(visita, 'edit')}
+                              title="Editar fecha y observaciones"
                             >
-                              <Eye size={13} aria-hidden="true" />
-                              <span>Ver</span>
+                              <Pencil size={13} aria-hidden="true" />
+                              <span>Editar</span>
                             </button>
-                            {showEditBtn && (
-                              <button
-                                type="button"
-                                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                                onClick={() => void handleOpenDetailModal(visita, 'edit')}
-                                title="Editar fecha y observaciones"
-                              >
-                                <Pencil size={13} aria-hidden="true" />
-                                <span>Editar</span>
-                              </button>
-                            )}
-                            {showApproveBtn &&
-                              !visita.aprobado &&
-                              solicitudAllowsApproval(visita.estadoSolicitud) && (
-                              <button
-                                type="button"
-                                className="mutation-btn mutation-btn-primary mutation-btn-sm"
-                                onClick={() => handleOpenApproveModal(visita)}
-                                title="Aprobar visita de forma irreversible"
-                              >
-                                <ShieldCheck size={13} aria-hidden="true" />
-                                <span>Aprobar</span>
-                              </button>
-                            )}
-                            {showDeleteBtn && !visita.aprobado && (
-                              <button
-                                type="button"
-                                className="mutation-btn mutation-btn-danger mutation-btn-sm"
-                                onClick={() => handleOpenDeleteModal(visita)}
-                                title="Eliminar visita pendiente"
-                              >
-                                <Trash2 size={13} aria-hidden="true" />
-                                <span>Eliminar</span>
-                              </button>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Barra de Paginación */}
-              <div className="mutation-pagination-bar">
-                <div className="mutation-pagination-info">
-                  <span>Total encontrados: <strong>{totalCount}</strong></span>
-                  <span>•</span>
-                  <span>Página <strong>{pageNumber}</strong> de <strong>{totalPages || 1}</strong></span>
-                </div>
-
-                <div className="mutation-pagination-actions">
-                  <label htmlFor="pageSizeSelectVisitas" className="mutation-filter-label" style={{ marginRight: 4 }}>
-                    Mostrar:
-                  </label>
-                  <select
-                    id="pageSizeSelectVisitas"
-                    className="mutation-select-sm"
-                    value={pageSize}
-                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                    disabled={loading}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-
-                  <button
-                    type="button"
-                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                    onClick={handlePrevPage}
-                    disabled={!hasPreviousPage || pageNumber <= 1 || loading}
-                    title="Página anterior"
-                  >
-                    <ChevronLeft size={14} aria-hidden="true" />
-                    <span>Anterior</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                    onClick={handleNextPage}
-                    disabled={!hasNextPage || pageNumber >= totalPages || loading}
-                    title="Página siguiente"
-                  >
-                    <span>Siguiente</span>
-                    <ChevronRight size={14} aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-            </>
+                          )}
+                          {showApproveBtn &&
+                            !visita.aprobado &&
+                            solicitudAllowsApproval(visita.estadoSolicitud) && (
+                            <button
+                              type="button"
+                              className="mutation-btn mutation-btn-primary mutation-btn-sm"
+                              onClick={() => handleOpenApproveModal(visita)}
+                              title="Aprobar visita de forma irreversible"
+                            >
+                              <ShieldCheck size={13} aria-hidden="true" />
+                              <span>Aprobar</span>
+                            </button>
+                          )}
+                          {showDeleteBtn && !visita.aprobado && (
+                            <button
+                              type="button"
+                              className="mutation-btn mutation-btn-danger mutation-btn-sm"
+                              onClick={() => handleOpenDeleteModal(visita)}
+                              title="Eliminar visita pendiente"
+                            >
+                              <Trash2 size={13} aria-hidden="true" />
+                              <span>Eliminar</span>
+                            </button>
+                          )}
+                        </div>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
+
+          {/* Barra de Paginación */}
+          <div className="mutation-pagination-bar">
+            <div className="mutation-pagination-info">
+              {totalCount === 0 ? (
+                <>
+                  <span>
+                    <strong>0</strong> registros
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Página <strong>0</strong> de <strong>0</strong>
+                  </span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    Mostrando <strong>{rangeStart}–{rangeEnd}</strong> de{' '}
+                    <strong>{totalCount}</strong> registros
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Página <strong>{displayPage}</strong> de{' '}
+                    <strong>{displayTotalPages}</strong>
+                  </span>
+                </>
+              )}
+            </div>
+
+            <div className="mutation-pagination-actions">
+              <label
+                htmlFor="pageSizeSelectVisitas"
+                className="mutation-filter-label"
+                style={{ marginRight: 4 }}
+              >
+                Mostrar:
+              </label>
+              <select
+                id="pageSizeSelectVisitas"
+                className="mutation-select-sm"
+                value={pageSize}
+                onChange={(e) => handlePageSizeChange(Number(e.target.value))}
+                disabled={loading}
+              >
+                <option value={25}>25</option>
+                <option value={50}>50</option>
+                <option value={100}>100</option>
+              </select>
+
+              <button
+                type="button"
+                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                onClick={handlePrevPage}
+                disabled={!hasPreviousPage || page <= 1 || loading}
+                title="Página anterior"
+              >
+                <ChevronLeft size={14} aria-hidden="true" />
+                <span>Anterior</span>
+              </button>
+
+              <button
+                type="button"
+                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                onClick={handleNextPage}
+                disabled={!hasNextPage || page >= totalPages || loading}
+                title="Página siguiente"
+              >
+                <span>Siguiente</span>
+                <ChevronRight size={14} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         </>
       )}
 
