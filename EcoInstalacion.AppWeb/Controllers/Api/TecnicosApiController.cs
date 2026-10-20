@@ -1,3 +1,4 @@
+using EcoInstalacion.AppWeb.DTOs.Shared;
 using EcoInstalacion.AppWeb.DTOs.Tecnicos;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
@@ -20,48 +21,44 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
             _tecnicoService = tecnicoService;
         }
 
+        private static TecnicoListDto MapToListDto(Tecnico t) => new()
+        {
+            Id = t.Id,
+            Nombre = t.Nombre,
+            Especialidad = t.Especialidad,
+            Telefono = t.Telefono,
+            Correo = t.Correo
+        };
+
         [HttpGet]
         [ProducesResponseType(typeof(List<TecnicoListDto>), StatusCodes.Status200OK)]
         public async Task<ActionResult<List<TecnicoListDto>>> GetTecnicos()
         {
             var tecnicos = await _tecnicoService.Lista();
-
-            var result = tecnicos.Select(t => new TecnicoListDto
-            {
-                Id = t.Id,
-                Nombre = t.Nombre,
-                Especialidad = t.Especialidad,
-                Telefono = t.Telefono,
-                Correo = t.Correo
-            }).ToList();
-
-            return Ok(result);
+            return Ok(tecnicos.Select(MapToListDto).ToList());
         }
 
         [HttpGet("paginados")]
-        [ProducesResponseType(typeof(EcoInstalacion.Entity.Pagination.PagedResultDto<TecnicoListDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<EcoInstalacion.Entity.Pagination.PagedResultDto<TecnicoListDto>>> GetTecnicosPaginados(
-            [FromQuery] EcoInstalacion.Entity.Pagination.TecnicoQueryDto query)
+        [ProducesResponseType(typeof(PagedResponse<TecnicoListDto>), StatusCodes.Status200OK)]
+        public async Task<ActionResult<PagedResponse<TecnicoListDto>>> GetTecnicosPaginados(
+            [FromQuery] string? q = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25)
         {
-            query ??= new EcoInstalacion.Entity.Pagination.TecnicoQueryDto();
-            var result = await _tecnicoService.ListaPaginada(query);
+            var result = await _tecnicoService.ListaPaginada(
+                q,
+                page,
+                pageSize);
 
-            var mappedResult = new EcoInstalacion.Entity.Pagination.PagedResultDto<TecnicoListDto>
+            var response = new PagedResponse<TecnicoListDto>
             {
-                Items = result.Items.Select(t => new TecnicoListDto
-                {
-                    Id = t.Id,
-                    Nombre = t.Nombre,
-                    Especialidad = t.Especialidad,
-                    Telefono = t.Telefono,
-                    Correo = t.Correo
-                }).ToList(),
-                TotalCount = result.TotalCount,
-                PageNumber = result.PageNumber,
-                PageSize = result.PageSize
+                Items = result.Items.Select(MapToListDto).ToList(),
+                Page = result.Page,
+                PageSize = result.PageSize,
+                TotalCount = result.TotalCount
             };
 
-            return Ok(mappedResult);
+            return Ok(response);
         }
 
         [HttpGet("{id:int}")]

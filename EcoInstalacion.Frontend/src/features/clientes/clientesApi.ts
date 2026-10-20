@@ -1,18 +1,15 @@
 import { request } from '../../services/httpClient';
+import type { PagedResponse } from '../../types/pagination';
 import type {
   ClienteListItem,
   ClienteDetail,
   ClienteCreatePayload,
   ClienteUpdatePayload,
   ClienteEstadoFiltro,
-  PagedResult,
   ClientePagedQuery
 } from './types';
 
-/** Listado de clientes paginados y buscados */
-export function getClientesPaginados(
-  query: ClientePagedQuery
-): Promise<PagedResult<ClienteListItem>> {
+function buildClientesQueryParams(query: ClientePagedQuery = {}): string {
   const params = new URLSearchParams();
   if (query.q && query.q.trim() !== '') {
     params.append('q', query.q.trim());
@@ -20,34 +17,46 @@ export function getClientesPaginados(
   if (query.estado) {
     params.append('estado', query.estado);
   }
-  if (query.pageNumber !== undefined && query.pageNumber !== null) {
-    params.append('pageNumber', query.pageNumber.toString());
+  if (query.page !== undefined && query.page !== null) {
+    params.append('page', query.page.toString());
   }
   if (query.pageSize !== undefined && query.pageSize !== null) {
     params.append('pageSize', query.pageSize.toString());
   }
-
-  const queryString = params.toString();
-  const url = `api/clientes/paginados${queryString ? `?${queryString}` : ''}`;
-
-  return request<PagedResult<ClienteListItem>>(url);
+  return params.toString();
 }
 
-/** Listado de clientes activos — para Administrador y Técnico */
+/** Listado de clientes paginados y buscados */
+export function getClientesPaginados(
+  query: ClientePagedQuery = {}
+): Promise<PagedResponse<ClienteListItem>> {
+  const queryString = buildClientesQueryParams(query);
+  const url = `api/clientes/paginados${queryString ? `?${queryString}` : ''}`;
+
+  return request<PagedResponse<ClienteListItem>>(url);
+}
+
+/** Listado de clientes activos — para Administrador y Técnico (selectores / resumen) */
 export function getClientes(): Promise<ClienteListItem[]> {
   return request<ClienteListItem[]>('api/clientes');
 }
 
 /**
- * Listado administrativo con filtro de estado.
+ * Listado administrativo paginado con filtro de estado y búsqueda.
  * Solo Administrador tiene acceso (ApiAdminOnly en backend).
  */
 export function getClientesAdministracion(
-  estado: ClienteEstadoFiltro
-): Promise<ClienteListItem[]> {
-  return request<ClienteListItem[]>(
-    `api/clientes/administracion?estado=${encodeURIComponent(estado)}`
-  );
+  estadoOrQuery: ClienteEstadoFiltro | ClientePagedQuery = 'activos'
+): Promise<PagedResponse<ClienteListItem>> {
+  const query: ClientePagedQuery =
+    typeof estadoOrQuery === 'string'
+      ? { estado: estadoOrQuery }
+      : { estado: 'activos', ...estadoOrQuery };
+
+  const queryString = buildClientesQueryParams(query);
+  const url = `api/clientes/administracion${queryString ? `?${queryString}` : ''}`;
+
+  return request<PagedResponse<ClienteListItem>>(url);
 }
 
 export function getClienteById(id: number): Promise<ClienteDetail> {

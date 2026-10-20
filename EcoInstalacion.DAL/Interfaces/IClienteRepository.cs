@@ -1,4 +1,5 @@
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Shared;
 
 namespace EcoInstalacion.DAL.Interfaces
 {
@@ -8,6 +9,10 @@ namespace EcoInstalacion.DAL.Interfaces
         Task<List<Cliente>> ListaActivosSinTracking();
         Task<List<Cliente>> ListaPorEstadoSinTracking(bool? esActivo);
         Task<Cliente?> ObtenerPorIdSinTracking(int id);
-        Task<EcoInstalacion.Entity.Pagination.PagedResultDto<Cliente>> ListaPaginadaSinTracking(EcoInstalacion.Entity.Pagination.ClienteQueryDto query, bool? fuerzaActivo = null);
+        Task<PagedResult<Cliente>> ListaPaginadaSinTracking(
+            string? q = null,
+            bool? esActivo = null,
+            int page = 1,
+            int pageSize = 25);
     }
 }

@@ -1,4 +1,5 @@
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Shared;
 
 namespace EcoInstalacion.DAL.Interfaces
 {
@@ -7,6 +8,9 @@ namespace EcoInstalacion.DAL.Interfaces
         Task<bool> EstaAsignadoASolicitudes(int tecnicoId);
         Task<List<Tecnico>> ListaSinTracking();
         Task<Tecnico?> ObtenerPorIdSinTracking(int id);
-        Task<EcoInstalacion.Entity.Pagination.PagedResultDto<Tecnico>> ListaPaginadaSinTracking(EcoInstalacion.Entity.Pagination.TecnicoQueryDto query);
+        Task<PagedResult<Tecnico>> ListaPaginadaSinTracking(
+            string? q = null,
+            int page = 1,
+            int pageSize = 25);
     }
 }

@@ -1,6 +1,7 @@
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Shared;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
@@ -77,10 +78,15 @@ namespace EcoInstalacion.BLL.Implementacion
             return await _tecnicoRepository.ObtenerPorIdSinTracking(id);
         }
 
-        public async Task<EcoInstalacion.Entity.Pagination.PagedResultDto<Tecnico>> ListaPaginada(EcoInstalacion.Entity.Pagination.TecnicoQueryDto query)
+        public async Task<PagedResult<Tecnico>> ListaPaginada(
+            string? q = null,
+            int page = 1,
+            int pageSize = 25)
         {
-            if (query is null) throw new ArgumentNullException(nameof(query));
-            return await _tecnicoRepository.ListaPaginadaSinTracking(query);
+            return await _tecnicoRepository.ListaPaginadaSinTracking(
+                q,
+                page,
+                pageSize);
         }
     }
 }

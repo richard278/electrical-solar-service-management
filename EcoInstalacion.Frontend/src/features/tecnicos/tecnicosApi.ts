@@ -1,25 +1,22 @@
 import { request } from '../../services/httpClient';
+import type { PagedResponse } from '../../types/pagination';
 import type {
   TecnicoListItem,
   TecnicoDetail,
   TecnicoCreatePayload,
   TecnicoUpdatePayload,
-  PagedResult,
   TecnicoPagedQuery
 } from './types';
 
 export function getTecnicosPaginados(
-  query: TecnicoPagedQuery
-): Promise<PagedResult<TecnicoListItem>> {
+  query: TecnicoPagedQuery = {}
+): Promise<PagedResponse<TecnicoListItem>> {
   const params = new URLSearchParams();
   if (query.q && query.q.trim() !== '') {
     params.append('q', query.q.trim());
   }
-  if (query.estado) {
-    params.append('estado', query.estado);
-  }
-  if (query.pageNumber !== undefined && query.pageNumber !== null) {
-    params.append('pageNumber', query.pageNumber.toString());
+  if (query.page !== undefined && query.page !== null) {
+    params.append('page', query.page.toString());
   }
   if (query.pageSize !== undefined && query.pageSize !== null) {
     params.append('pageSize', query.pageSize.toString());
@@ -28,7 +25,7 @@ export function getTecnicosPaginados(
   const queryString = params.toString();
   const url = `api/tecnicos/paginados${queryString ? `?${queryString}` : ''}`;
 
-  return request<PagedResult<TecnicoListItem>>(url);
+  return request<PagedResponse<TecnicoListItem>>(url);
 }
 
 export function getTecnicos(): Promise<TecnicoListItem[]> {

@@ -16,10 +16,12 @@ import { useAuth } from "../auth/useAuth";
 import {
   canCreateCliente,
   canEditCliente,
-  canDeleteCliente
+  canDeleteCliente,
+  normalizeRole
 } from "../utils/roleUtils";
 import {
   getClientesPaginados,
+  getClientesAdministracion,
   getClienteById,
   createCliente,
   updateCliente,
@@ -36,15 +38,17 @@ import type {
 import { ClienteFormModal } from "../features/clientes/components/ClienteFormModal";
 import { ConfirmModal } from "../components/common/ConfirmModal";
 import { HttpError } from "../services/httpClient";
-import { normalizeRole } from "../utils/roleUtils";
 import "../components/common/MutationUi.css";
+
+const DEFAULT_PAGE_SIZE = 25;
+const SEARCH_DEBOUNCE_MS = 300;
 
 export default function ClientesPage() {
   const { user } = useAuth();
   const isAdmin = normalizeRole(user?.rol) === "administrador";
 
   // Catalog list state
-  const [clientes, setClientes] = useState<ClienteListItem[]>([]);
+  const [items, setItems] = useState<ClienteListItem[]>([]);
   const [loading, setLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const requestIdRef = useRef<number>(0);
@@ -56,9 +60,10 @@ export default function ClientesPage() {
 
   // Pagination & Filter state
   const [q, setQ] = useState<string>("");
+  const [debouncedQ, setDebouncedQ] = useState<string>("");
   const [filtro, setFiltro] = useState<ClienteEstadoFiltro>("activos");
-  const [pageNumber, setPageNumber] = useState<number>(1);
-  const [pageSize, setPageSize] = useState<number>(10);
+  const [page, setPage] = useState<number>(1);
+  const [pageSize] = useState<number>(DEFAULT_PAGE_SIZE);
   const [totalCount, setTotalCount] = useState<number>(0);
   const [totalPages, setTotalPages] = useState<number>(0);
   const [hasPreviousPage, setHasPreviousPage] = useState<boolean>(false);
@@ -81,6 +86,18 @@ export default function ClientesPage() {
   const showDeleteBtn = canDeleteCliente(user);
   const showActionsCol = showEditBtn || showDeleteBtn;
 
+  // ─── Debounce de búsqueda ─────────────────────────────────────────
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setDebouncedQ(q);
+    }, SEARCH_DEBOUNCE_MS);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, [q]);
+
   // ─── Fetch Paginado ───────────────────────────────────────────────
 
   const fetchClientesList = useCallback(
@@ -90,14 +107,33 @@ export default function ClientesPage() {
       setError(null);
       setOpError(null);
       try {
-        const data = await getClientesPaginados(query);
+        const data = isAdmin
+          ? await getClientesAdministracion(query)
+          : await getClientesPaginados({
+              q: query.q,
+              page: query.page,
+              pageSize: query.pageSize
+            });
 
         if (requestId !== requestIdRef.current) return;
-        setClientes(data.items || []);
-        setTotalCount(data.totalCount || 0);
-        setTotalPages(data.totalPages || 0);
-        setHasPreviousPage(!!data.hasPreviousPage);
-        setHasNextPage(!!data.hasNextPage);
+
+        const currentPage = data.page ?? query.page ?? 1;
+        const pageItems = data.items || [];
+
+        // Si una eliminación, desactivación o recarga deja vacía una página mayor que 1:
+        // saltar directamente a la última página válida evitando ciclos infinitos.
+        if (pageItems.length === 0 && currentPage > 1) {
+          const lastValidPage = Math.max(1, data.totalPages ?? 0);
+          setPage(lastValidPage);
+          return;
+        }
+
+        setItems(pageItems);
+        setPage(currentPage);
+        setTotalCount(data.totalCount ?? 0);
+        setTotalPages(data.totalPages ?? 0);
+        setHasPreviousPage(Boolean(data.hasPreviousPage));
+        setHasNextPage(Boolean(data.hasNextPage));
       } catch (err) {
         if (requestId !== requestIdRef.current) return;
         if (err instanceof HttpError) {
@@ -119,48 +155,42 @@ export default function ClientesPage() {
         }
       }
     },
-    []
+    [isAdmin]
   );
 
   useEffect(() => {
     void fetchClientesList({
-      q,
+      q: debouncedQ,
       estado: filtro,
-      pageNumber,
+      page,
       pageSize
     });
-  }, [fetchClientesList, q, filtro, pageNumber, pageSize]);
+  }, [fetchClientesList, debouncedQ, filtro, page, pageSize]);
 
   // ─── Control Handlers ─────────────────────────────────────────────
 
   const handleSearchChange = (val: string) => {
     setQ(val);
-    setPageNumber(1);
+    setPage(1);
     setSuccessMsg(null);
   };
 
   const handleFiltroChange = (nuevoFiltro: ClienteEstadoFiltro) => {
     setFiltro(nuevoFiltro);
-    setPageNumber(1);
-    setSuccessMsg(null);
-  };
-
-  const handlePageSizeChange = (nuevoSize: number) => {
-    setPageSize(nuevoSize);
-    setPageNumber(1);
+    setPage(1);
     setSuccessMsg(null);
   };
 
   const handlePrevPage = () => {
-    if (hasPreviousPage && pageNumber > 1) {
-      setPageNumber((p) => p - 1);
+    if (hasPreviousPage && page > 1) {
+      setPage((p) => p - 1);
       setSuccessMsg(null);
     }
   };
 
   const handleNextPage = () => {
-    if (hasNextPage && pageNumber < totalPages) {
-      setPageNumber((p) => p + 1);
+    if (hasNextPage && page < totalPages) {
+      setPage((p) => p + 1);
       setSuccessMsg(null);
     }
   };
@@ -200,7 +230,7 @@ export default function ClientesPage() {
       setIsFormOpen(false);
       if (err instanceof HttpError) {
         if (err.status === 404) {
-          await fetchClientesList({ q, estado: filtro, pageNumber, pageSize });
+          await fetchClientesList({ q: debouncedQ, estado: filtro, page, pageSize });
           setOpError(
             `El cliente "${cliente.nombreCompleto || `#${cliente.id}`}" ya no existe en el servidor.`
           );
@@ -234,22 +264,24 @@ export default function ClientesPage() {
         targetFiltro = "activos";
         setFiltro("activos");
       }
-      setPageNumber(1);
+      setQ("");
+      setDebouncedQ("");
+      setPage(1);
       setSuccessMsg("Cliente creado correctamente. Visualizando clientes activos.");
-      void fetchClientesList({ q: "", estado: targetFiltro, pageNumber: 1, pageSize });
+      void fetchClientesList({ q: "", estado: targetFiltro, page: 1, pageSize });
     } else if (selectedClienteDetail) {
       const updPayload = payload as ClienteUpdatePayload;
       try {
         await updateCliente(selectedClienteDetail.id, updPayload);
         setIsFormOpen(false);
-        void fetchClientesList({ q, estado: filtro, pageNumber, pageSize });
+        void fetchClientesList({ q: debouncedQ, estado: filtro, page, pageSize });
         const statusMsg = updPayload.esActivo
           ? "Cliente actualizado y marcado como Activo."
           : "Cliente actualizado y marcado como Inactivo.";
         setSuccessMsg(statusMsg);
       } catch (err) {
         if (err instanceof HttpError && err.status === 404) {
-          await fetchClientesList({ q, estado: filtro, pageNumber, pageSize });
+          await fetchClientesList({ q: debouncedQ, estado: filtro, page, pageSize });
         }
         throw err;
       }
@@ -278,10 +310,10 @@ export default function ClientesPage() {
       setClienteToDelete(null);
 
       // Si quedaba sólo 1 elemento en una página superior a 1, retrocedemos de página
-      if (clientes.length === 1 && pageNumber > 1) {
-        setPageNumber((p) => p - 1);
+      if (items.length === 1 && page > 1) {
+        setPage((p) => p - 1);
       } else {
-        void fetchClientesList({ q, estado: filtro, pageNumber, pageSize });
+        void fetchClientesList({ q: debouncedQ, estado: filtro, page, pageSize });
       }
       setSuccessMsg(`Cliente "${nombre}" eliminado correctamente.`);
     } catch (err) {
@@ -297,7 +329,7 @@ export default function ClientesPage() {
           setIsDeleteOpen(false);
           setClienteToDelete(null);
           setDeleteError(null);
-          await fetchClientesList({ q, estado: filtro, pageNumber, pageSize });
+          await fetchClientesList({ q: debouncedQ, estado: filtro, page, pageSize });
           setOpError("El cliente ya no existe o fue eliminado previamente. Se actualizó el listado.");
         } else if (err.status === 401) {
           setDeleteError(err.message || "Sesión no autorizada o expirada.");
@@ -323,6 +355,11 @@ export default function ClientesPage() {
     inactivos: "Inactivos",
     todos: "Todos",
   };
+
+  const rangeStart = totalCount === 0 || items.length === 0 ? 0 : (page - 1) * pageSize + 1;
+  const rangeEnd = totalCount === 0 || items.length === 0 ? 0 : rangeStart + items.length - 1;
+  const displayPage = totalCount === 0 ? 0 : page;
+  const displayTotalPages = totalCount === 0 ? 0 : totalPages;
 
   // ─── Render ───────────────────────────────────────────────────────
 
@@ -362,7 +399,8 @@ export default function ClientesPage() {
           <input
             type="text"
             className="mutation-search-input"
-            placeholder="Buscar por nombre, DUI, correo..."
+            placeholder="Buscar por nombre o DUI..."
+            aria-label="Buscar clientes por nombre o DUI"
             value={q}
             onChange={(e) => handleSearchChange(e.target.value)}
           />
@@ -429,7 +467,7 @@ export default function ClientesPage() {
           <button
             type="button"
             className="mutation-btn mutation-btn-secondary mutation-btn-sm mutation-retry-margin"
-            onClick={() => fetchClientesList({ q, estado: filtro, pageNumber, pageSize })}
+            onClick={() => void fetchClientesList({ q: debouncedQ, estado: filtro, page, pageSize })}
           >
             <RefreshCw size={14} aria-hidden="true" />
             <span>Reintentar</span>
@@ -439,127 +477,124 @@ export default function ClientesPage() {
 
       {!loading && !error && (
         <>
-          {clientes.length === 0 ? (
+          {items.length === 0 ? (
             <p className="empty-message">
               No se encontraron clientes
-              {q.trim() ? ` que coincidan con "${q}"` : ""}
+              {debouncedQ.trim() ? ` que coincidan con "${debouncedQ.trim()}"` : ""}
               {isAdmin && filtro !== "todos" ? ` con estado "${filtroLabel[filtro]}"` : ""}.
             </p>
           ) : (
-            <>
-              <div className="table-responsive">
-                <table className="entity-table">
-                  <thead>
-                    <tr>
-                      <th>ID</th>
-                      <th>Nombre Completo</th>
-                      <th>DUI</th>
-                      <th>Teléfono</th>
-                      <th>Correo</th>
-                      <th>Dirección</th>
-                      <th>Estado</th>
-                      {showActionsCol && <th>Acciones</th>}
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {clientes.map((c) => (
-                      <tr key={c.id}>
-                        <td className="text-bold">#{c.id}</td>
-                        <td>{c.nombreCompleto || "N/A"}</td>
-                        <td>{c.dui || "N/A"}</td>
-                        <td>{c.telefono || "N/A"}</td>
-                        <td>{c.correo || "N/A"}</td>
-                        <td>{c.direccion || "N/A"}</td>
-                        <td>
-                          {c.esActivo !== false ? (
-                            <span className="status-pill badge-success">Activo</span>
-                          ) : (
-                            <span className="status-pill badge-secondary">Inactivo</span>
-                          )}
-                        </td>
-                        {showActionsCol && (
-                          <td>
-                            <div className="mutation-action-buttons">
-                              {showEditBtn && (
-                                <button
-                                  type="button"
-                                  className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                                  onClick={() => handleOpenEditModal(c)}
-                                  title="Editar cliente"
-                                >
-                                  <Pencil size={13} aria-hidden="true" />
-                                  <span>Editar</span>
-                                </button>
-                              )}
-                              {showDeleteBtn && (
-                                <button
-                                  type="button"
-                                  className="mutation-btn mutation-btn-danger mutation-btn-sm"
-                                  onClick={() => handleOpenDeleteModal(c)}
-                                  title="Eliminar cliente"
-                                >
-                                  <Trash2 size={13} aria-hidden="true" />
-                                  <span>Eliminar</span>
-                                </button>
-                              )}
-                            </div>
-                          </td>
+            <div className="table-responsive">
+              <table className="entity-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Nombre Completo</th>
+                    <th>DUI</th>
+                    <th>Teléfono</th>
+                    <th>Correo</th>
+                    <th>Dirección</th>
+                    <th>Estado</th>
+                    {showActionsCol && <th>Acciones</th>}
+                  </tr>
+                </thead>
+                <tbody>
+                  {items.map((c) => (
+                    <tr key={c.id}>
+                      <td className="text-bold">#{c.id}</td>
+                      <td>{c.nombreCompleto || "N/A"}</td>
+                      <td>{c.dui || "N/A"}</td>
+                      <td>{c.telefono || "N/A"}</td>
+                      <td>{c.correo || "N/A"}</td>
+                      <td>{c.direccion || "N/A"}</td>
+                      <td>
+                        {c.esActivo !== false ? (
+                          <span className="status-pill badge-success">Activo</span>
+                        ) : (
+                          <span className="status-pill badge-secondary">Inactivo</span>
                         )}
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
-
-              {/* Barra de Paginación */}
-              <div className="mutation-pagination-bar">
-                <div className="mutation-pagination-info">
-                  <span>Total encontrados: <strong>{totalCount}</strong></span>
-                  <span>•</span>
-                  <span>Página <strong>{pageNumber}</strong> de <strong>{totalPages || 1}</strong></span>
-                </div>
-
-                <div className="mutation-pagination-actions">
-                  <label htmlFor="pageSizeSelect" className="mutation-filter-label" style={{ marginRight: 4 }}>
-                    Mostrar:
-                  </label>
-                  <select
-                    id="pageSizeSelect"
-                    className="mutation-select-sm"
-                    value={pageSize}
-                    onChange={(e) => handlePageSizeChange(Number(e.target.value))}
-                    disabled={loading}
-                  >
-                    <option value={10}>10</option>
-                    <option value={20}>20</option>
-                    <option value={50}>50</option>
-                  </select>
-
-                  <button
-                    type="button"
-                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                    onClick={handlePrevPage}
-                    disabled={!hasPreviousPage || pageNumber <= 1 || loading}
-                    title="Página anterior"
-                  >
-                    <ChevronLeft size={14} aria-hidden="true" />
-                    <span>Anterior</span>
-                  </button>
-
-                  <button
-                    type="button"
-                    className="mutation-btn mutation-btn-secondary mutation-btn-sm"
-                    onClick={handleNextPage}
-                    disabled={!hasNextPage || pageNumber >= totalPages || loading}
-                    title="Página siguiente"
-                  >
-                    <span>Siguiente</span>
-                    <ChevronRight size={14} aria-hidden="true" />
-                  </button>
-                </div>
-              </div>
-            </>
+                      </td>
+                      {showActionsCol && (
+                        <td>
+                          <div className="mutation-action-buttons">
+                            {showEditBtn && (
+                              <button
+                                type="button"
+                                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                                onClick={() => void handleOpenEditModal(c)}
+                                title="Editar cliente"
+                              >
+                                <Pencil size={13} aria-hidden="true" />
+                                <span>Editar</span>
+                              </button>
+                            )}
+                            {showDeleteBtn && (
+                              <button
+                                type="button"
+                                className="mutation-btn mutation-btn-danger mutation-btn-sm"
+                                onClick={() => handleOpenDeleteModal(c)}
+                                title="Eliminar cliente"
+                              >
+                                <Trash2 size={13} aria-hidden="true" />
+                                <span>Eliminar</span>
+                              </button>
+                            )}
+                          </div>
+                        </td>
+                      )}
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           )}
+
+          {/* Barra de Paginación */}
+          <div className="mutation-pagination-bar">
+            <div className="mutation-pagination-info">
+              {totalCount === 0 ? (
+                <>
+                  <span><strong>0</strong> registros</span>
+                  <span>•</span>
+                  <span>Página <strong>0</strong> de <strong>0</strong></span>
+                </>
+              ) : (
+                <>
+                  <span>
+                    Mostrando <strong>{rangeStart}–{rangeEnd}</strong> de <strong>{totalCount}</strong> registros
+                  </span>
+                  <span>•</span>
+                  <span>
+                    Página <strong>{displayPage}</strong> de <strong>{displayTotalPages}</strong>
+                  </span>
+                </>
+              )}
+            </div>
+
+            <div className="mutation-pagination-actions">
+              <button
+                type="button"
+                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                onClick={handlePrevPage}
+                disabled={!hasPreviousPage || loading}
+                title="Página anterior"
+              >
+                <ChevronLeft size={14} aria-hidden="true" />
+                <span>Anterior</span>
+              </button>
+
+              <button
+                type="button"
+                className="mutation-btn mutation-btn-secondary mutation-btn-sm"
+                onClick={handleNextPage}
+                disabled={!hasNextPage || loading}
+                title="Página siguiente"
+              >
+                <span>Siguiente</span>
+                <ChevronRight size={14} aria-hidden="true" />
+              </button>
+            </div>
+          </div>
         </>
       )}
 
@@ -602,4 +637,3 @@ export default function ClientesPage() {
     </div>
   );
 }
-

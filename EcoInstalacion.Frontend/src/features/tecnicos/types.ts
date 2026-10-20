@@ -1,3 +1,5 @@
+import type { PagedResponse } from '../../types/pagination';
+
 export interface TecnicoListItem {
   id: number;
   nombre: string;
@@ -28,21 +30,10 @@ export interface TecnicoUpdatePayload {
   correo?: string;
 }
 
-export type TecnicoEstadoFiltro = 'activos' | 'inactivos' | 'todos';
-
-export interface PagedResult<T> {
-  items: T[];
-  pageNumber: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  hasPreviousPage: boolean;
-  hasNextPage: boolean;
-}
+export type PagedResult<T> = PagedResponse<T>;
 
 export interface TecnicoPagedQuery {
   q?: string;
-  estado?: TecnicoEstadoFiltro;
-  pageNumber?: number;
+  page?: number;
   pageSize?: number;
 }

@@ -1,4 +1,5 @@
 using EcoInstalacion.AppWeb.DTOs.Clientes;
+using EcoInstalacion.AppWeb.DTOs.Shared;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.Entity;
 using EcoInstalacion.Entity.Seguridad;
@@ -62,26 +63,56 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         // ──────────────────────────────────────────────────────────────────────
         // GET /api/clientes/paginados — clientes paginados y buscados
         // ──────────────────────────────────────────────────────────────────────
-        
-        [HttpGet("paginados")]
-        [ProducesResponseType(typeof(EcoInstalacion.Entity.Pagination.PagedResultDto<ClienteListDto>), StatusCodes.Status200OK)]
-        public async Task<ActionResult<EcoInstalacion.Entity.Pagination.PagedResultDto<ClienteListDto>>> GetClientesPaginados(
-            [FromQuery] EcoInstalacion.Entity.Pagination.ClienteQueryDto query)
-        {
-            query ??= new EcoInstalacion.Entity.Pagination.ClienteQueryDto();
-            
-            bool esAdmin = User.IsInRole(RolesSistema.Administrador);
-            var result = await _clienteService.ListaPaginada(query, esAdmin);
 
-            var mappedResult = new EcoInstalacion.Entity.Pagination.PagedResultDto<ClienteListDto>
+        [HttpGet("paginados")]
+        [ProducesResponseType(typeof(PagedResponse<ClienteListDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        public async Task<ActionResult<PagedResponse<ClienteListDto>>> GetClientesPaginados(
+            [FromQuery] string? q = null,
+            [FromQuery] string? estado = null,
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25)
+        {
+            bool esAdmin = User.IsInRole(RolesSistema.Administrador);
+            bool? esActivo = true;
+
+            if (esAdmin)
+            {
+                var estadoNorm = string.IsNullOrWhiteSpace(estado)
+                    ? "activos"
+                    : estado.Trim().ToLowerInvariant();
+
+                if (estadoNorm != "activos" && estadoNorm != "inactivos" && estadoNorm != "todos")
+                {
+                    return BadRequest(new
+                    {
+                        message = $"Valor de estado inválido: '{estado}'. Los valores aceptados son: activos, inactivos, todos."
+                    });
+                }
+
+                esActivo = estadoNorm switch
+                {
+                    "activos"   => true,
+                    "inactivos" => false,
+                    _           => (bool?)null
+                };
+            }
+
+            var result = await _clienteService.ListaPaginada(
+                q,
+                esActivo,
+                page,
+                pageSize);
+
+            var response = new PagedResponse<ClienteListDto>
             {
                 Items = result.Items.Select(MapToListDto).ToList(),
-                TotalCount = result.TotalCount,
-                PageNumber = result.PageNumber,
-                PageSize = result.PageSize
+                Page = result.Page,
+                PageSize = result.PageSize,
+                TotalCount = result.TotalCount
             };
 
-            return Ok(mappedResult);
+            return Ok(response);
         }
 
         // ──────────────────────────────────────────────────────────────────────
@@ -91,12 +122,15 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
 
         [HttpGet("administracion")]
         [Authorize(Policy = "ApiAdminOnly")]
-        [ProducesResponseType(typeof(List<ClienteListDto>), StatusCodes.Status200OK)]
+        [ProducesResponseType(typeof(PagedResponse<ClienteListDto>), StatusCodes.Status200OK)]
         [ProducesResponseType(StatusCodes.Status400BadRequest)]
-        public async Task<ActionResult<List<ClienteListDto>>> GetClientesAdministracion(
-            [FromQuery] string estado = "activos")
+        public async Task<ActionResult<PagedResponse<ClienteListDto>>> GetClientesAdministracion(
+            [FromQuery] string? q = null,
+            [FromQuery] string estado = "activos",
+            [FromQuery] int page = 1,
+            [FromQuery] int pageSize = 25)
         {
-            var estadoNorm = estado.Trim().ToLowerInvariant();
+            var estadoNorm = (estado ?? "activos").Trim().ToLowerInvariant();
 
             if (estadoNorm != "activos" && estadoNorm != "inactivos" && estadoNorm != "todos")
             {
@@ -113,8 +147,21 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                 _           => (bool?)null
             };
 
-            var clientes = await _clienteService.ListaPorEstado(esActivo);
-            return Ok(clientes.Select(MapToListDto).ToList());
+            var result = await _clienteService.ListaPaginada(
+                q,
+                esActivo,
+                page,
+                pageSize);
+
+            var response = new PagedResponse<ClienteListDto>
+            {
+                Items = result.Items.Select(MapToListDto).ToList(),
+                Page = result.Page,
+                PageSize = result.PageSize,
+                TotalCount = result.TotalCount
+            };
+
+            return Ok(response);
         }
 
         // ──────────────────────────────────────────────────────────────────────

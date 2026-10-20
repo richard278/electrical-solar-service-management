@@ -1,3 +1,5 @@
+import type { PagedResponse } from '../../types/pagination';
+
 export interface ClienteListItem {
   id: number;
   nombreCompleto: string;
@@ -38,20 +40,11 @@ export interface ClienteUpdatePayload {
 
 export type ClienteEstadoFiltro = 'activos' | 'inactivos' | 'todos';
 
-export interface PagedResult<T> {
-  items: T[];
-  pageNumber: number;
-  pageSize: number;
-  totalCount: number;
-  totalPages: number;
-  hasPreviousPage: boolean;
-  hasNextPage: boolean;
-}
+export type PagedResult<T> = PagedResponse<T>;
 
 export interface ClientePagedQuery {
   q?: string;
   estado?: ClienteEstadoFiltro;
-  pageNumber?: number;
+  page?: number;
   pageSize?: number;
 }
-

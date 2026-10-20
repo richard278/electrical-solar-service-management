@@ -1,6 +1,7 @@
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.DAL.Interfaces;
 using EcoInstalacion.Entity;
+using EcoInstalacion.Entity.Shared;
 
 namespace EcoInstalacion.BLL.Implementacion
 {
@@ -98,17 +99,17 @@ namespace EcoInstalacion.BLL.Implementacion
             return await _repoClienteSpecific.ObtenerPorIdSinTracking(id);
         }
 
-        public async Task<EcoInstalacion.Entity.Pagination.PagedResultDto<Cliente>> ListaPaginada(EcoInstalacion.Entity.Pagination.ClienteQueryDto query, bool esAdmin = false)
+        public async Task<PagedResult<Cliente>> ListaPaginada(
+            string? q = null,
+            bool? esActivo = null,
+            int page = 1,
+            int pageSize = 25)
         {
-            if (query is null) throw new ArgumentNullException(nameof(query));
-
-            bool? fuerzaActivo = null;
-            if (!esAdmin)
-            {
-                fuerzaActivo = true;
-            }
-
-            return await _repoClienteSpecific.ListaPaginadaSinTracking(query, fuerzaActivo);
+            return await _repoClienteSpecific.ListaPaginadaSinTracking(
+                q,
+                esActivo,
+                page,
+                pageSize);
         }
     }
 }
