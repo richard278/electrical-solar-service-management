@@ -31,6 +31,12 @@ namespace EcoInstalacion.IOC
             services.AddScoped<IVisitaTecnicaService, VisitaTecnicaService>();
             services.AddScoped<IReporteService, ReporteService>();
             services.AddScoped<IReportePdfService, ReportePdfService>();
+
+            var temporalOptions = new OperationalTemporalOptions();
+            temporalOptions.Validate();
+            services.AddSingleton(temporalOptions);
+            services.AddSingleton<IOperationalClock, ElSalvadorOperationalClock>();
+            services.AddSingleton<IOperationalAlertPolicy, OperationalAlertPolicy>();
         }
     }
 }

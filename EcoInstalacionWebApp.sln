@@ -13,6 +13,10 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EcoInstalacion.DAL", "EcoIn
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EcoInstalacion.IOC", "EcoInstalacion.IOC\EcoInstalacion.IOC.csproj", "{BC9E3AC0-3185-457B-A88F-30E95BA8B44E}"
 EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{5C6CAC92-214A-41BF-AAFE-8D85677BD75A}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "EcoInstalacion.BLL.Tests", "tests\EcoInstalacion.BLL.Tests\EcoInstalacion.BLL.Tests.csproj", "{1395C45A-C421-4A6A-92A1-289A38E945D4}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -39,11 +43,18 @@ Global
 		{BC9E3AC0-3185-457B-A88F-30E95BA8B44E}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{BC9E3AC0-3185-457B-A88F-30E95BA8B44E}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{BC9E3AC0-3185-457B-A88F-30E95BA8B44E}.Release|Any CPU.Build.0 = Release|Any CPU
+		{1395C45A-C421-4A6A-92A1-289A38E945D4}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{1395C45A-C421-4A6A-92A1-289A38E945D4}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{1395C45A-C421-4A6A-92A1-289A38E945D4}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{1395C45A-C421-4A6A-92A1-289A38E945D4}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
 	EndGlobalSection
 	GlobalSection(ExtensibilityGlobals) = postSolution
 		SolutionGuid = {8A645B22-B0D1-46B5-98DC-73B8383A6501}
+	EndGlobalSection
+	GlobalSection(NestedProjects) = preSolution
+		{1395C45A-C421-4A6A-92A1-289A38E945D4} = {5C6CAC92-214A-41BF-AAFE-8D85677BD75A}
 	EndGlobalSection
 EndGlobal
