@@ -1,6 +1,7 @@
 using EcoInstalacion.DAL.EcoInstaladorContext;
 using EcoInstalacion.IOC;
 using Microsoft.EntityFrameworkCore;
+using EcoInstalacion.BLL.Implementacion;
 using EcoInstalacion.BLL.Interfaces;
 using EcoInstalacion.AppWeb.Utilidades.Storage;
 using Microsoft.AspNetCore.Authentication.Cookies;
@@ -65,6 +66,7 @@ builder.Services.AddDbContext<EcoInstaladorContext>(options =>
 
 // Inyección de dependencias de la capa BLL/DAL
 builder.Services.InyectarDependencia(builder.Configuration);
+builder.Services.AddScoped<IReporteExcelService, ReporteExcelService>();
 
 // Registrar JwtOptions y IJwtTokenService
 builder.Services.Configure<JwtOptions>(builder.Configuration.GetSection("Jwt"));

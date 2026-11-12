@@ -24,18 +24,23 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
         private const string IsoDateFormat = "yyyy-MM-dd";
         private const string PdfFileName = "Reporte_Tecnicos_Asignados.pdf";
         private const string PdfContentType = "application/pdf";
+        private const string ExcelFileName = "Reporte_Tecnicos_Asignados.xlsx";
+        private const string ExcelContentType = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
         private readonly IReporteService _reporteService;
         private readonly IReportePdfService _pdfService;
+        private readonly IReporteExcelService _excelService;
         private readonly IWebHostEnvironment? _env;
 
         public ReportesApiController(
             IReporteService reporteService,
             IReportePdfService pdfService,
+            IReporteExcelService excelService,
             IWebHostEnvironment? env = null)
         {
             _reporteService = reporteService ?? throw new ArgumentNullException(nameof(reporteService));
             _pdfService = pdfService ?? throw new ArgumentNullException(nameof(pdfService));
+            _excelService = excelService ?? throw new ArgumentNullException(nameof(excelService));
             _env = env;
         }
 
@@ -98,6 +103,40 @@ namespace EcoInstalacion.AppWeb.Controllers.Api
                 logoBytes);
 
             return File(pdfBytes, PdfContentType, PdfFileName);
+        }
+
+        [HttpGet("tecnicos-asignados/excel")]
+        [Produces(ExcelContentType, "application/json")]
+        [ProducesResponseType(typeof(FileContentResult), StatusCodes.Status200OK)]
+        [ProducesResponseType(StatusCodes.Status400BadRequest)]
+        [ProducesResponseType(StatusCodes.Status401Unauthorized)]
+        [ProducesResponseType(StatusCodes.Status403Forbidden)]
+        [ProducesResponseType(StatusCodes.Status404NotFound)]
+        public async Task<IActionResult> ExportarTecnicosAsignadosExcel(
+            [FromQuery] string? fechaInicio = null,
+            [FromQuery] string? fechaFin = null)
+        {
+            if (!TryValidarRangoFechas(fechaInicio, fechaFin, out var fi, out var ff, out var errorMessage))
+            {
+                return BadRequest(new { message = errorMessage });
+            }
+
+            var listaReporte = await _reporteService.ReporteTecnicosAsignados(fi, ff);
+
+            if (listaReporte is null || listaReporte.Count == 0)
+            {
+                return NotFound(new
+                {
+                    message = "No hay datos disponibles para generar el archivo Excel en el rango seleccionado."
+                });
+            }
+
+            var excelBytes = _excelService.GenerarReporteTecnicosAsignadosXlsx(
+                listaReporte,
+                fi,
+                ff);
+
+            return File(excelBytes, ExcelContentType, ExcelFileName);
         }
 
         private static bool TryValidarRangoFechas(
