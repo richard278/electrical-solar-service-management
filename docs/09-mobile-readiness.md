@@ -34,16 +34,23 @@ El cliente móvil operará principalmente sobre tres módulos del backend:
 * **Actualizar observaciones**: Edición del informe técnico directamente en la visita.
 * **Marcar visita como aprobada o no aprobada**: Cambio de estado de la inspección técnica una vez culminados los trabajos de validación.
 
-## 6. Contratos Actuales Reutilizables
+## 6. Contratos Actuales Reutilizables y Permisos Vigentes (`Baseline a1cc4ef`)
 
-Los endpoints expuestos en la API REST de `EcoInstalacion.AppWeb` ya satisfacen los requerimientos del cliente móvil:
+Los endpoints expuestos en la API REST de `EcoInstalacion.AppWeb` ofrecen la base de contratos JSON y paginación para un futuro cliente móvil, con la siguiente distinción entre operaciones ya accesibles para el rol `Técnico` y operaciones actualmente restringidas a `Administrador`:
 
-* `GET /api/tecnicos`: Recupera catálogos e información del personal técnico.
-* `GET /api/solicitudes`: Obtiene el listado de solicitudes para su posterior filtrado en la app móvil.
-* `GET /api/solicitudes/{id}`: Recupera información técnica detallada del cliente y tipo de instalación.
-* `GET /api/visitas-tecnicas?solicitudId={id}`: Obtiene el histórico de visitas técnicas correspondientes a la solicitud.
-* `POST /api/visitas-tecnicas`: Envía el payload de creación de visita en sitio (`VisitaTecnicaCreateDto`).
-* `PUT /api/visitas-tecnicas/{id}`: Envía actualizaciones del estado y observaciones de la visita (`VisitaTecnicaUpdateDto`).
+### 6.1 Endpoints de autenticación y consulta (disponibles para `Administrador` y `Técnico`)
+
+* `POST /api/auth/login`: Autenticación mediante credenciales (`AuthLoginRequestDto`) y emisión de token JWT Bearer (`AuthLoginResponseDto`).
+* `GET /api/tecnicos` y `GET /api/tecnicos/paginados?q={texto}&page=1&pageSize=25`: Recuperación del catálogo de personal técnico.
+* `GET /api/solicitudes` y `GET /api/solicitudes/paginadas?q={texto}&estado={estado}&page=1&pageSize=25`: Consulta de solicitudes de instalación con búsqueda por cliente y filtro por estado.
+* `GET /api/solicitudes/{id}`: Recupera información técnica detallada del cliente, técnico asignado y descripción de la solicitud.
+* `GET /api/visitas-tecnicas?solicitudId={id}` y `GET /api/visitas-tecnicas/paginadas?q={texto}&aprobado={bool}&page=1&pageSize=25`: Consulta del historial de visitas técnicas.
+* `GET /api/visitas-tecnicas/{id}`: Detalle de una visita técnica específica.
+
+### 6.2 Endpoints de escritura en visitas (actualmente restringidos a `ApiAdminOnly`)
+
+* `POST /api/visitas-tecnicas` (`VisitaTecnicaCreateDto`) y `PUT /api/visitas-tecnicas/{id}` (`VisitaTecnicaUpdateDto`): En el baseline público actual (`a1cc4ef`), ambos endpoints exigen la política **`ApiAdminOnly`** (`Administrador`), por lo que un usuario autenticado con rol `Técnico` recibe `403 Forbidden`.
+* **Requisito previo para operación móvil de campo**: Antes de habilitar que un técnico de campo registre o edite visitas desde la app móvil, se deberá definir e implementar una política de autorización específica y reglas de alcance por técnico asignado (`TecnicoAsignadoId`) en el backend.
 
 ## 7. Consideraciones Técnicas para React Native
 
@@ -53,15 +60,15 @@ Los endpoints expuestos en la API REST de `EcoInstalacion.AppWeb` ya satisfacen 
 * **Pruebas en Dispositivo Físico**: Si se depura en un teléfono real conectado por USB o Wi-Fi, este debe estar en la misma red de área local (LAN) que el backend. La URL de la API debe apuntar a la dirección IP local de la computadora (ej. `http://192.168.1.XX:5240`) o bien utilizar un proxy/túnel de desarrollo seguro (ej. `ngrok` o `dev tunnels` de VS).
 * **Estabilidad del Contrato**: Al compilar e instalar la app en los dispositivos de los usuarios, es más difícil realizar actualizaciones inmediatas. Los DTOs deben mantenerse estables y con retrocompatibilidad.
 * **Mensajes de Error Consistentes**: En caso de fallas de negocio o de red, el backend debe responder siempre con un payload JSON estructurado para que el cliente móvil pueda interpretar y pintar alertas amigables al usuario en lugar de páginas de error HTML de ASP.NET Core.
-* **Autenticación**: Se debe definir e implementar la seguridad (JWT o tokens persistentes) antes de permitir que la app móvil acceda o escriba en las APIs.
+* **Autenticación JWT e Integración Móvil**: El backend ya expone `POST /api/auth/login` con emisión de JWT Bearer. Para el canal móvil resta definir el almacenamiento seguro en dispositivo (ej. `expo-secure-store`) y la estrategia de renovación de sesión (`refresh tokens`).
 
 ## 8. Consideraciones de Evolución Futura
 
 Para escalar la aplicación móvil a un ambiente productivo maduro, se deben considerar los siguientes requerimientos arquitectónicos en fases posteriores:
 
-* **Autenticación Móvil**: Flujo de inicio de sesión optimizado para móviles con retención de credenciales.
-* **Refresh Tokens o Sesión Segura**: Renovación automática de tokens JWT expirados para no forzar al técnico a iniciar sesión constantemente en campo.
-* **Paginación**: Endpoints de listados de solicitudes y visitas paginados para disminuir el consumo de ancho de banda móvil.
+* **Alcance y Permisos de Técnico en Campo**: Filtrado en servidor de solicitudes y visitas por `TecnicoAsignadoId`, y habilitación controlada de registro/actualización de observaciones de visitas para el técnico asignado (manteniendo la aprobación final reservada o regulada según regla de negocio).
+* **Refresh Tokens y Almacenamiento Seguro**: Renovación automática de tokens JWT expirados para no forzar al técnico a iniciar sesión constantemente en campo.
+* **Aprovechamiento de Paginación Existente**: Consumo móvil de los endpoints `/api/solicitudes/paginadas` y `/api/visitas-tecnicas/paginadas` ya disponibles en el backend para optimizar el consumo de datos móviles.
 * **Modo Offline**: Almacenamiento local (ej. `AsyncStorage` o `SQLite` en el dispositivo) para permitir a los técnicos registrar visitas y observaciones en zonas sin cobertura de internet.
 * **Sincronización**: Lógica de sincronización diferida en la app móvil que envíe los registros locales acumulados al backend una vez detectada la reconexión.
 * **Captura de Fotos**: Carga de imágenes (evidencia fotográfica de la instalación) mediante endpoints multipart en el backend.
@@ -73,23 +80,20 @@ Para escalar la aplicación móvil a un ambiente productivo maduro, se deben con
 
 ## 9. Roadmap de Desarrollo Móvil Sugerido
 
-El desarrollo del cliente móvil se estructurará bajo el siguiente plan progresivo:
+El desarrollo del cliente móvil (actualmente en estado planificado; no existe proyecto React Native / Expo en el repositorio) se estructurará bajo el siguiente plan progresivo:
 
 * **Sprint M1: Scaffold React Native / Expo**
   * Inicialización del proyecto usando Expo CLI con TypeScript.
   * Configuración del sistema de navegación básica (Expo Router o React Navigation).
-* **Sprint M2: Configuración del API Client**
-  * Implementación de Axios o Fetch configurado para detectar entornos locales, emuladores y producción.
-  * Creación del middleware de manejo de errores generales de red.
+* **Sprint M2: Configuración del API Client y Autenticación JWT**
+  * Implementación de cliente HTTP (`fetch`) configurado para detectar entornos locales, emuladores y producción.
+  * Integración con `POST /api/auth/login` y almacenamiento seguro del token en el dispositivo.
 * **Sprint M3: Pantalla de Solicitudes Asignadas**
   * Maquetación de la pantalla principal del técnico de campo.
-  * Consumo de `GET /api/solicitudes` y visualización en tarjetas legibles.
+  * Consumo de `GET /api/solicitudes/paginadas` e incorporación del futuro filtro por técnico asignado.
 * **Sprint M4: Detalle de Solicitud**
-  * Creación de la pantalla de detalle.
+  * Creación de la pantalla de detalle (`GET /api/solicitudes/{id}` y `GET /api/visitas-tecnicas?solicitudId={id}`).
   * Carga y presentación de los campos del cliente e instrucciones técnicas.
-* **Sprint M5: Registro de Visita Técnica**
-  * Pantalla con formulario de visitas técnicas.
-  * Integración con `POST` y `PUT` para guardar observaciones y estados de aprobación.
-* **Sprint M6: Autenticación Móvil**
-  * Pantalla de login e integración con la futura API de Auth del backend.
-  * Guardado seguro de credenciales/tokens en el almacenamiento del dispositivo.
+* **Sprint M5: Registro y Seguimiento de Visita Técnica**
+  * Ajuste previo de políticas de autorización en backend para permitir el reporte en sitio por parte del técnico asignado.
+  * Pantalla con formulario de visitas técnicas e integración con los endpoints correspondientes.

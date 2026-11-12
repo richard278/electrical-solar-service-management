@@ -103,12 +103,14 @@ Campos principales:
 
 El modelo relacional confirma que la entidad central del dominio operativo es **SolicitudesInstalacion**, ya que conecta clientes, técnicos y visitas técnicas.
 
-Esta estructura respalda la estrategia API-first adoptada durante la modernización progresiva del sistema:
+Esta estructura respalda la estrategia API-first adoptada durante la modernización progresiva del sistema en el baseline público (`a1cc4ef`):
 
-- `Clientes` ya cuenta con API REST.
-- `Tecnicos` ya cuenta con API REST.
-- `Roles` ya cuenta con API REST.
-- `SolicitudesInstalacion` es el siguiente módulo natural para exponer mediante API REST.
+- `Clientes` cuenta con API REST (`/api/clientes`, incluido `/paginados` y `/administracion`).
+- `Tecnicos` cuenta con API REST (`/api/tecnicos`, incluido `/paginados`).
+- `Roles` cuenta con API REST (`/api/roles`).
+- `SolicitudesInstalacion` cuenta con API REST (`/api/solicitudes`, incluido `/paginadas`).
+- `VisitasTecnicas` cuenta con API REST (`/api/visitas-tecnicas`, incluido `/paginadas`).
+- `Usuario` permanece administrado desde la superficie MVC/Razor (`UsuarioController`) y alimenta la autenticación JWT mediante `POST /api/auth/login`.
 
 ## Criterio de modernización
 

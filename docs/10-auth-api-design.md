@@ -92,19 +92,20 @@ La protección se aplica en el servidor. Las utilidades de roles del frontend re
 | :--- | :--- | :---: | :---: |
 | Auth | `POST /api/auth/login` | Anónimo | Anónimo |
 | Clientes | `GET /api/clientes` | Sí | Sí |
-| Clientes | `GET /api/clientes/administracion` | Sí | No |
-| Clientes | `GET /api/clientes/{id}` | Sí | Sí, solo cliente activo |
-| Clientes | `POST /api/clientes` | Sí | Sí |
-| Clientes | `PUT`, `DELETE /api/clientes/{id}` | Sí | No |
-| Técnicos | `GET` listado y detalle | Sí | Sí |
-| Técnicos | `POST`, `PUT`, `DELETE` | Sí | No |
-| Roles | Todas las operaciones | Sí | No |
-| Solicitudes | `GET` listado y detalle | Sí | Sí |
-| Solicitudes | `POST`, `PUT`, `DELETE` | Sí | No |
-| Visitas Técnicas | `GET` listado, filtro y detalle | Sí | Sí |
-| Visitas Técnicas | `POST`, `PUT`, `DELETE` | Sí | No |
+| Clientes | `GET /api/clientes/paginados` | Sí (`activos`, `inactivos`, `todos`) | Sí (forzado a `esActivo = true`) |
+| Clientes | `GET /api/clientes/administracion` | Sí | No (`ApiAdminOnly`) |
+| Clientes | `GET /api/clientes/{id}` | Sí | Sí, solo cliente activo (`404` si inactivo) |
+| Clientes | `POST /api/clientes` | Sí | Sí (crea siempre con `EsActivo = true`) |
+| Clientes | `PUT`, `DELETE /api/clientes/{id}` | Sí | No (`ApiAdminOnly`) |
+| Técnicos | `GET /api/tecnicos`, `GET /api/tecnicos/paginados`, `GET /api/tecnicos/{id}` | Sí | Sí |
+| Técnicos | `POST`, `PUT`, `DELETE` | Sí | No (`ApiAdminOnly`) |
+| Roles | Todas las operaciones (`/api/roles`) | Sí | No (`ApiAdminOnly`) |
+| Solicitudes | `GET /api/solicitudes`, `GET /api/solicitudes/paginadas`, `GET /api/solicitudes/{id}` | Sí | Sí |
+| Solicitudes | `POST`, `PUT`, `DELETE` | Sí | No (`ApiAdminOnly`) |
+| Visitas Técnicas | `GET /api/visitas-tecnicas` (incl. `?solicitudId=`), `GET /api/visitas-tecnicas/paginadas`, `GET /api/visitas-tecnicas/{id}` | Sí | Sí |
+| Visitas Técnicas | `POST`, `PUT`, `DELETE` | Sí | No (`ApiAdminOnly`) |
 
-La excepción de negocio vigente permite que el rol `Técnico` cree clientes, pero no los edite ni elimine. En los demás módulos operativos sus permisos actuales son de consulta.
+La excepción de negocio vigente permite que el rol `Técnico` cree clientes activos (`POST /api/clientes`), pero no los edite ni elimine. En los demás módulos operativos (`Técnicos`, `Solicitudes` y `Visitas Técnicas`) sus permisos actuales en el baseline público (`a1cc4ef`) son exclusivamente de consulta (`GET`).
 
 La autorización presente trabaja a nivel de endpoint. Salvo la ocultación de clientes inactivos para el rol Técnico, todavía no existe filtrado de registros por técnico asignado.
 

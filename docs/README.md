@@ -1,6 +1,6 @@
 # EcoInstalacion Technical Documentation
 
-This directory contains the technical documentation for **Electrical Solar Service Management / EcoInstalacion**. It organizes the current system reference guides, architectural modernization decisions, and historical refactoring audits for the public baseline (`3a0e343e94ef4712fb114d58907f358d386e1a65`).
+This directory contains the technical documentation for **Electrical Solar Service Management / EcoInstalacion**. It organizes the current system reference guides, architectural modernization decisions, and historical refactoring audits for the public baseline (`a1cc4ef95dc1a91198c1ed2db571e9dfbec4be38`).
 
 ---
 
@@ -28,7 +28,7 @@ This directory contains the technical documentation for **Electrical Solar Servi
 
 ---
 
-## Current Baseline Status (`3a0e343e94ef4712fb114d58907f358d386e1a65`)
+## Current Baseline Status (`a1cc4ef95dc1a91198c1ed2db571e9dfbec4be38`)
 
 - **Backend Framework**: .NET 8 (`C# 12`)
 - **Dual Presentation Architecture**:
@@ -38,15 +38,12 @@ This directory contains the technical documentation for **Electrical Solar Servi
 - **Server-Side Search & Pagination**: Published and active across all four operational modules (`/api/clientes/paginados`, `/api/clientes/administracion`, `/api/tecnicos/paginados`, `/api/solicitudes/paginadas`, `/api/visitas-tecnicas/paginadas`) and integrated into the React SPA with `300 ms` debounced search.
 - **Data Persistence**: Entity Framework Core 8 & SQL Server (`EcoInstaladorContext` consolidated in `EcoInstalacion.DAL` with dedicated domain repositories). Database DDL, triggers (`dbo.tr_ActualizarEstadoSolicitud`), and reporting stored procedures are not yet versioned as public migrations or SQL bootstrap scripts.
 - **Verified xUnit Test Suite ([`tests/EcoInstalacion.BLL.Tests`](../tests/EcoInstalacion.BLL.Tests))**:
-  - **Isolated Baseline Verification (`ECO-PORT-01-REV1`, executed on `2026-11-11`)**: **26 declared test methods** (`18` `[Fact]` + `8` `[Theory]`) expanding into **49 discovered xUnit test cases** (`49` passed, `0` failed, `0` skipped, `Exit Code 0`, `Release` configuration) covering [`OperationalAlertPolicy`](../EcoInstalacion.BLL/Implementacion/OperationalAlertPolicy.cs) (`20` request cases + `9` visit cases) and [`ElSalvadorOperationalClock`](../EcoInstalacion.BLL/Implementacion/ElSalvadorOperationalClock.cs) / `OperationalTemporalOptions` (`20` cases).
+  - **Isolated Baseline Verification (`ECO-PORT-01-REV1`, executed on `2026-11-11` over code tree `3a0e343e` / `a1cc4ef`)**: **26 declared test methods** (`18` `[Fact]` + `8` `[Theory]`) expanding into **49 discovered xUnit test cases** (`49` passed, `0` failed, `0` skipped, `Exit Code 0`, `Release` configuration) covering [`OperationalAlertPolicy`](../EcoInstalacion.BLL/Implementacion/OperationalAlertPolicy.cs) (`20` request cases + `9` visit cases) and [`ElSalvadorOperationalClock`](../EcoInstalacion.BLL/Implementacion/ElSalvadorOperationalClock.cs) / `OperationalTemporalOptions` (`20` cases).
 
 ---
 
-## Documentation Alignment & Version Notice (`ECO-PORT-02` Scope)
+## Historical Documents & Baseline Authority Notice
 
-> **Baseline Authority Notice**: Earlier documents in this folder preserve the historical progression of previous engineering increments and may describe intermediate states of the project. Whenever a historical document differs from the current implementation, **the source code at public baseline commit `3a0e343e94ef4712fb114d58907f358d386e1a65` is the authoritative reference**.
+> **Baseline Authority Notice**: Following **`ECO-PORT-01`** and **`ECO-PORT-02`**, the current reference documents ([`07-database-model.md`](07-database-model.md), [`08-api-contract.md`](08-api-contract.md), [`09-mobile-readiness.md`](09-mobile-readiness.md), [`10-auth-api-design.md`](10-auth-api-design.md), [`11-technical-debt-register.md`](11-technical-debt-register.md), and [`../EcoInstalacion.Frontend/README.md`](../EcoInstalacion.Frontend/README.md)) are aligned with the public baseline (`a1cc4ef95dc1a91198c1ed2db571e9dfbec4be38`).
 >
-> Specifically, the following documents contain sections drafted prior to the completion of server-side pagination, `Solicitudes` / `Visitas Técnicas` REST endpoints, and the `EcoInstalacion.BLL.Tests` suite, and are scheduled for targeted revision in **`ECO-PORT-02`**:
-> - [`07-database-model.md`](07-database-model.md) (lists `SolicitudesInstalacion` REST exposure as a next step, whereas `/api/solicitudes` and `/api/visitas-tecnicas` are now implemented).
-> - [`08-api-contract.md`](08-api-contract.md) (documents the base CRUD endpoints but does not yet list the `/paginados` and `/paginadas` query endpoints).
-> - [`11-technical-debt-register.md`](11-technical-debt-register.md) and [`../EcoInstalacion.Frontend/README.md`](../EcoInstalacion.Frontend/README.md) (still list server-side pagination and search `DT-08` / `DT-09` as pending, and do not yet reference the BLL xUnit test suite).
+> Earlier architecture and refactoring documents ([`01-project-overview.md`](01-project-overview.md) through [`06-deployment-roadmap.md`](06-deployment-roadmap.md) and [`architecture/target-architecture.md`](architecture/target-architecture.md)) are intentionally preserved as historical records of previous engineering increments. Whenever a historical document describes an intermediate project state, **the source code and current API/Auth contract documents at the public baseline commit are the authoritative reference**.

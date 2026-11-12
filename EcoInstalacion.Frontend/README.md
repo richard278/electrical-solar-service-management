@@ -16,10 +16,15 @@ El frontend consume la API ASP.NET Core mediante autenticación JWT y presenta c
 ## Capacidades actuales
 
 - Login mediante `POST /api/auth/login`.
-- Access token JWT conservado únicamente en memoria.
-- Inclusión automática de `Authorization: Bearer <token>` en las solicitudes protegidas.
+- Access token JWT conservado únicamente en memoria (`AuthContext`).
+- Inclusión automática de `Authorization: Bearer <token>` en las solicitudes protegidas (`httpClient.ts`).
 - Cierre de sesión manual y cierre automático al alcanzar `expiresAtUtc`.
-- Panel con cinco secciones: Inicio, Clientes, Técnicos, Solicitudes y Visitas Técnicas.
+- Panel con cinco secciones: Inicio (`OverviewPage`), Clientes (`ClientesPage`), Técnicos (`TecnicosPage`), Solicitudes (`SolicitudesPage`) y Visitas Técnicas (`VisitasTecnicasPage`).
+- **Paginación y búsqueda en servidor (`DEFAULT_PAGE_SIZE = 25`, debounce `300 ms`)**:
+  - `Clientes`: búsqueda por nombre o DUI (`q`) y filtro por estado (`activos`, `inactivos`, `todos` para `Administrador` mediante `/api/clientes/administracion`; solo activos para `Técnico` mediante `/api/clientes/paginados`).
+  - `Técnicos`: búsqueda por nombre o especialidad (`q`) en `/api/tecnicos/paginados`.
+  - `Solicitudes`: búsqueda por nombre de cliente (`q`) y filtro por estado (`Todas`, `Pendiente`, `Programada`, `En proceso`, `Cerrada`, `Rechazada`) en `/api/solicitudes/paginadas`.
+  - `Visitas Técnicas`: búsqueda por nombre de cliente (`q`) y filtro de aprobación (`Todas`, `Pendientes`, `Aprobadas`) en `/api/visitas-tecnicas/paginadas`.
 - Operaciones `GET`, `POST`, `PUT` y `DELETE` habilitadas conforme al rol y a las reglas de cada módulo.
 - Estados de carga, error, confirmación y validación en los flujos de gestión.
 - Navegación interna mediante estado de React en `AppShell.tsx`, sin React Router.
@@ -77,9 +82,11 @@ npm run build
 
 - La sesión no se persiste: recargar la página requiere iniciar sesión nuevamente.
 - No existen refresh tokens ni renovación silenciosa de sesión.
-- La navegación por estado vuelve a Inicio al recargar y no ofrece enlaces profundos.
-- No hay paginación ni búsqueda avanzada por nombre, DUI u otros campos.
-- No existe todavía una suite automatizada de pruebas del frontend.
+- La navegación por estado vuelve a Inicio al recargar y no ofrece enlaces profundos (`react-router` pendiente).
+- La vista de resumen (`OverviewPage`) calcula contadores generales consultando los endpoints de listado completo (`GET /api/clientes`, `GET /api/tecnicos`, `GET /api/solicitudes`, `GET /api/visitas-tecnicas`) y todavía no integra la política de clasificación de alertas operativas de `BLL` (`OperationalAlertPolicy`).
+- La administración de cuentas internas (`Usuarios`, `Roles`) y la exportación de reportes PDF (`QuestPDF`) operan en la interfaz heredada MVC/Razor y aún no están expuestas en la SPA React.
+- Los listados de solicitudes y visitas para el rol `Técnico` son de solo lectura global y no filtran todavía registros por técnico asignado (`TecnicoAsignadoId`).
+- No existe todavía una suite automatizada de pruebas del frontend (las pruebas unitarias existentes en `tests/EcoInstalacion.BLL.Tests` cubren la capa de dominio `.NET`).
 - El despliegue unificado del SPA y ASP.NET Core continúa pendiente.
 
 Para el contrato y la matriz de seguridad vigentes, consulte:
